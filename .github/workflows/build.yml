@@ -1,4 +1,3 @@
-
 name: GUNX SMART NBA APK Build
 
 on:
@@ -62,7 +61,7 @@ jobs:
           java -version
           buildozer --version
 
-       - name: Test NBA Engine
+      - name: Test NBA Engine
         run: python nba_test.py
 
       - name: Build Android APK
@@ -84,3 +83,4 @@ jobs:
           name: GUNX-SMART-NBA-Build-Log
           path: build.log
           if-no-files-found: warn
+          
