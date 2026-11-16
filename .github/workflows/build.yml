@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -16,20 +17,21 @@ env:
 
 jobs:
   build:
+    name: Build GUNX SMART NBA
     runs-on: ubuntu-22.04
     timeout-minutes: 90
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Set up Java
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
@@ -84,26 +86,33 @@ jobs:
         run: |
           set -e
 
-          echo "Searching for generated APK..."
-
-          find . -type f -name "*.apk" -print
+          echo "======================================"
+          echo "SEARCHING FOR GENERATED APK"
+          echo "======================================"
 
           mkdir -p apk-artifacts
 
           find . -type f -name "*.apk" \
             -not -path "./apk-artifacts/*" \
-            -exec cp -t apk-artifacts {} +
+            -print
 
-          if ! ls apk-artifacts/*.apk >/dev/null 2>&1; then
-            echo "ERROR: No APK was generated!"
-            echo "Checking bin directory..."
+          find . -type f -name "*.apk" \
+            -not -path "./apk-artifacts/*" \
+            -exec cp {} apk-artifacts/ \;
+
+          if ! compgen -G "apk-artifacts/*.apk" > /dev/null; then
+            echo "ERROR: APK FILE NOT FOUND!"
+            echo "Checking bin directory:"
             ls -lah bin/ || true
-            echo "Checking Buildozer directory..."
+            echo "Checking Buildozer directory:"
             ls -lah .buildozer/ || true
             exit 1
           fi
 
-          echo "APK FOUND SUCCESSFULLY!"
+          echo "======================================"
+          echo "APK FOUND SUCCESSFULLY"
+          echo "======================================"
+
           ls -lh apk-artifacts/
 
       - name: Upload APK Artifact
