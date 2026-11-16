@@ -64,8 +64,10 @@ class GunxButton(Button):
 
 class GunxSmartNBAApp(App):
 
-    def build(self):
+        def build(self):
         self.title = "GUNX SMART NBA"
+
+        self.nba_engine = NBAAnalysisEngine()
 
         Window.clearcolor = get_color_from_hex(BG)
 
