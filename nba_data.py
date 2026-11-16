@@ -14,7 +14,9 @@ class NBADataError(Exception):
 
 class NBADataProvider:
 
-    BASE_URL = "https://stats.nba.com/stats/leaguedashteamstats"
+    BASE_URL = (
+        "https://stats.nba.com/stats/leaguedashteamstats"
+    )
 
     HEADERS = {
         "User-Agent": (
@@ -42,7 +44,9 @@ class NBADataProvider:
         else:
             start = now.year - 1
 
-        return f"{start}-{str(start + 1)[-2:]}"
+        return (
+            f"{start}-{str(start + 1)[-2:]}"
+        )
 
     def _request_stats(self, season, measure_type):
 
@@ -83,6 +87,7 @@ class NBADataProvider:
         }
 
         query = urllib.parse.urlencode(params)
+
         url = self.BASE_URL + "?" + query
 
         request = urllib.request.Request(
@@ -100,7 +105,14 @@ class NBADataProvider:
 
             payload = json.loads(raw)
 
-        except Exception as exc:
+        except (
+            urllib.error.URLError,
+            urllib.error.HTTPError,
+            TimeoutError,
+            json.JSONDecodeError,
+            Exception
+        ) as exc:
+
             raise NBADataError(
                 f"NBA {measure_type} request failed: {exc}"
             )
@@ -127,14 +139,22 @@ class NBADataProvider:
             for row in rows
         ]
 
-    def get_all_team_stats(self, season=None, force_refresh=False):
+    def get_all_team_stats(
+        self,
+        season=None,
+        force_refresh=False
+    ):
 
         season = season or self.current_season()
+
         cache_key = season
 
         with self._lock:
 
-            if not force_refresh and cache_key in self._cache:
+            if (
+                not force_refresh
+                and cache_key in self._cache
+            ):
                 return self._cache[cache_key]
 
         base_data = self._request_stats(
@@ -150,6 +170,7 @@ class NBADataProvider:
         advanced_lookup = {
             row["TEAM_ID"]: row
             for row in advanced_data
+            if "TEAM_ID" in row
         }
 
         teams = {}
@@ -157,6 +178,7 @@ class NBADataProvider:
         for row in base_data:
 
             team_id = row.get("TEAM_ID")
+
             advanced = advanced_lookup.get(team_id)
 
             if not advanced:
@@ -164,36 +186,98 @@ class NBADataProvider:
 
             try:
                 ppg = float(row["PTS"])
-                plus_minus = float(row["PLUS_MINUS"])
-                win_pct = float(row["W_PCT"])
-                pace = float(advanced["PACE"])
+
+                plus_minus = float(
+                    row["PLUS_MINUS"]
+                )
+
+                win_pct = float(
+                    row["W_PCT"]
+                )
+
+                pace = float(
+                    advanced["PACE"]
+                )
+
+                off_rating = float(
+                    advanced["OFF_RATING"]
+                )
+
+                def_rating = float(
+                    advanced["DEF_RATING"]
+                )
+
+                games_played = int(
+                    row["GP"]
+                )
 
                 if pace <= 0:
+                    continue
+
+                if games_played <= 0:
                     continue
 
                 if not 0 <= win_pct <= 1:
                     continue
 
+                values = (
+                    ppg,
+                    plus_minus,
+                    win_pct,
+                    pace,
+                    off_rating,
+                    def_rating,
+                )
+
+                if not all(
+                    value == value
+                    and abs(value) != float("inf")
+                    for value in values
+                ):
+                    continue
+
+                net_rating = (
+                    off_rating - def_rating
+                )
+
+                team_name = row["TEAM_NAME"]
+
                 team = {
                     "team_id": team_id,
-                    "team_name": row["TEAM_NAME"],
+                    "team_name": team_name,
+
                     "ppg": ppg,
-                    "opp_ppg": ppg - plus_minus,
+
+                    "opp_ppg": (
+                        ppg - plus_minus
+                    ),
+
                     "pace": pace,
+
                     "win_pct": win_pct,
-                    "off_rating": float(
-                        advanced["OFF_RATING"]
-                    ),
-                    "def_rating": float(
-                        advanced["DEF_RATING"]
-                    ),
-                    "games_played": int(row["GP"]),
+
+                    "off_rating": off_rating,
+
+                    "def_rating": def_rating,
+
+                    "net_rating": net_rating,
+
+                    "games_played": games_played,
+
                     "season": season,
+
+                    "data_status": "SEASON_DATA",
                 }
 
-                teams[row["TEAM_NAME"].lower()] = team
+                teams[
+                    team_name.strip().lower()
+                ] = team
 
-            except (KeyError, TypeError, ValueError):
+            except (
+                KeyError,
+                TypeError,
+                ValueError,
+            ):
                 continue
 
         if not teams:
@@ -206,20 +290,29 @@ class NBADataProvider:
 
         return teams
 
-    def get_team_stats(self, team_name, season=None):
+    def get_team_stats(
+        self,
+        team_name,
+        season=None
+    ):
 
         if not team_name:
-            raise NBADataError("Team name is required.")
+            raise NBADataError(
+                "Team name is required."
+            )
 
         teams = self.get_all_team_stats(season)
 
-        search_name = team_name.strip().lower()
+        search_name = (
+            team_name.strip().lower()
+        )
 
         if search_name in teams:
             return dict(teams[search_name])
 
         matches = [
-            team for name, team in teams.items()
+            team
+            for name, team in teams.items()
             if search_name in name
         ]
 
