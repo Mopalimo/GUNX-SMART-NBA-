@@ -74,16 +74,45 @@ jobs:
         run: python nba_live_test.py
 
       - name: Build Android APK
+        shell: bash
         run: |
+          set -o pipefail
           buildozer -v android debug 2>&1 | tee build.log
 
-      - name: Upload APK
-        if: success()
+      - name: Locate Generated APK
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for generated APK..."
+
+          find . -type f -name "*.apk" -print
+
+          mkdir -p apk-artifacts
+
+          find . -type f -name "*.apk" \
+            -not -path "./apk-artifacts/*" \
+            -exec cp -t apk-artifacts {} +
+
+          if ! ls apk-artifacts/*.apk >/dev/null 2>&1; then
+            echo "ERROR: No APK was generated!"
+            echo "Checking bin directory..."
+            ls -lah bin/ || true
+            echo "Checking Buildozer directory..."
+            ls -lah .buildozer/ || true
+            exit 1
+          fi
+
+          echo "APK FOUND SUCCESSFULLY!"
+          ls -lh apk-artifacts/
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: GUNX-SMART-NBA-APK
-          path: bin/*.apk
+          path: apk-artifacts/*.apk
           if-no-files-found: error
+          retention-days: 14
 
       - name: Upload build log
         if: always()
@@ -92,3 +121,4 @@ jobs:
           name: GUNX-SMART-NBA-Build-Log
           path: build.log
           if-no-files-found: warn
+          retention-days: 7
