@@ -333,29 +333,139 @@ class GunxSmartNBAApp(App):
 
         return scroll
 
+    
     def analysis_page(self):
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
-            "🧠 AI ANALYSIS",
+            "🧠 GUNX AI ANALYSIS",
             22, GOLD, True, 45
         ))
 
-        sections = [
-            ("TEAM FORM", "Last 5 and last 10 games"),
-            ("OFFENSIVE RATING", "Points produced per 100 possessions"),
-            ("DEFENSIVE RATING", "Points conceded per 100 possessions"),
-            ("PACE", "Estimated possessions per game"),
-            ("HOME / AWAY", "Performance differences"),
-            ("HEAD TO HEAD", "Previous meetings"),
-            ("PLAYER AVAILABILITY", "Injuries and player status"),
-            ("EXPECTED TOTAL", "Projected combined match points"),
+        content.add_widget(self.label(
+            "ENTER TEAM STATISTICS",
+            14, MUTED, True, 35
+        ))
+
+        self.analysis_inputs = {}
+
+        fields = [
+            ("home_name", "HOME TEAM NAME", "Boston Celtics"),
+            ("away_name", "AWAY TEAM NAME", "New York Knicks"),
+            ("home_ppg", "HOME POINTS PER GAME", "115"),
+            ("home_opp", "HOME OPPONENT POINTS PER GAME", "110"),
+            ("home_pace", "HOME PACE", "98"),
+            ("home_win", "HOME WIN RATE (%)", "65"),
+            ("away_ppg", "AWAY POINTS PER GAME", "112"),
+            ("away_opp", "AWAY OPPONENT POINTS PER GAME", "113"),
+            ("away_pace", "AWAY PACE", "97"),
+            ("away_win", "AWAY WIN RATE (%)", "55"),
         ]
 
-        for title, description in sections:
-            self.add_card(content, title, description)
+        for key, title, hint in fields:
+            content.add_widget(self.label(
+                title, 12, GOLD, True, 28
+            ))
+
+            field = TextInput(
+                hint_text=hint,
+                multiline=False,
+                size_hint_y=None,
+                height=dp(43),
+                font_size=sp(14),
+                foreground_color=get_color_from_hex(WHITE),
+                background_color=get_color_from_hex(PANEL),
+                cursor_color=get_color_from_hex(GOLD),
+                padding=[dp(10), dp(10)]
+            )
+
+            self.analysis_inputs[key] = field
+            content.add_widget(field)
+
+        analyze_btn = GunxButton(
+            text="RUN GUNX AI ANALYSIS",
+            size_hint_y=None,
+            height=dp(50)
+        )
+
+        analyze_btn.bind(
+            on_release=lambda instance: self.run_nba_analysis()
+        )
+
+        content.add_widget(analyze_btn)
+
+        self.analysis_output = self.label(
+            "ANALYSIS RESULTS WILL APPEAR HERE",
+            13, GREEN, True, 180
+        )
+
+        self.analysis_output.text_size = (
+            Window.width - dp(45), None
+        )
+        self.analysis_output.valign = "top"
+
+        content.add_widget(self.analysis_output)
 
         return scroll
+
+    def run_nba_analysis(self):
+        try:
+            data = {
+                key: widget.text.strip()
+                for key, widget in self.analysis_inputs.items()
+            }
+
+            home_name = data["home_name"]
+            away_name = data["away_name"]
+
+            if not home_name or not away_name:
+                raise ValueError("Enter both team names.")
+
+            home_stats = {
+                "ppg": float(data["home_ppg"]),
+                "opp_ppg": float(data["home_opp"]),
+                "pace": float(data["home_pace"]),
+                "win_pct": float(data["home_win"]) / 100
+            }
+
+            away_stats = {
+                "ppg": float(data["away_ppg"]),
+                "opp_ppg": float(data["away_opp"]),
+                "pace": float(data["away_pace"]),
+                "win_pct": float(data["away_win"]) / 100
+            }
+
+            result = self.nba_engine.analyze_game(
+                home_name,
+                away_name,
+                home_stats,
+                away_stats
+            )
+
+            self.analysis_output.text = (
+                "GUNX ANALYSIS RESULTS\n\n"
+                f"HOME: {result['home_team']}\n"
+                f"PROJECTED POINTS: "
+                f"{result['home_projected_points']}\n"
+                f"WIN PROBABILITY: "
+                f"{result['home_win_probability']}%\n\n"
+                f"AWAY: {result['away_team']}\n"
+                f"PROJECTED POINTS: "
+                f"{result['away_projected_points']}\n"
+                f"WIN PROBABILITY: "
+                f"{result['away_win_probability']}%\n\n"
+                f"PROJECTED TOTAL: "
+                f"{result['projected_total']}\n"
+                f"PREDICTED WINNER: "
+                f"{result['predicted_winner']}\n\n"
+                "STATUS: ESTIMATE - NOT GUARANTEED"
+            )
+
+        except (ValueError, TypeError) as error:
+            self.analysis_output.text = (
+                "INPUT ERROR:\n" + str(error)
+            )
+            
 
     def odds_page(self):
         scroll, content = self.make_page()
