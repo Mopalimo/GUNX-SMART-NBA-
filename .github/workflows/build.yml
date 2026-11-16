@@ -65,6 +65,9 @@ jobs:
       - name: Test NBA Engine
         run: python nba_test.py
 
+      - name: Test NBA Integration
+        run: python nba_integration_test.py
+
       - name: Test NBA Live Data
         continue-on-error: true
         timeout-minutes: 10
