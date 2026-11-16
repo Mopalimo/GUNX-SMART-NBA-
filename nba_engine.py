@@ -1,289 +1,318 @@
 
-import json
-import socket
-import time
-import urllib.parse
-import urllib.request
-import urllib.error
-
-from datetime import datetime
-from threading import Lock
+import math
 
 
-class NBADataError(Exception):
-    """Raised when NBA data cannot be retrieved or validated."""
+class NBAAnalysisEngine:
+    """
+    GUNX SMART NBA Analysis Engine.
 
+    Uses team season statistics and advanced ratings.
+    Does not invent missing statistics.
+    """
 
-class NBADataProvider:
+    REQUIRED_STATS = (
+        "ppg",
+        "opp_ppg",
+        "pace",
+        "win_pct",
+    )
 
-    BASE_URL = "https://stats.nba.com/stats/leaguedashteamstats"
+    def _validate_team(self, team):
 
-    HEADERS = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
-        ),
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Origin": "https://www.nba.com",
-        "Referer": "https://www.nba.com/",
-        "Connection": "keep-alive",
-    }
-
-    def __init__(self, timeout=35, retries=3):
-        self.timeout = timeout
-        self.retries = retries
-        self._cache = {}
-        self._lock = Lock()
-
-    @staticmethod
-    def current_season():
-        now = datetime.now()
-
-        if now.month >= 10:
-            start = now.year
-        else:
-            start = now.year - 1
-
-        return f"{start}-{str(start + 1)[-2:]}"
-
-    def _request_stats(self, season, measure_type):
-
-        params = {
-            "College": "",
-            "Conference": "",
-            "Country": "",
-            "DateFrom": "",
-            "DateTo": "",
-            "Division": "",
-            "DraftPick": "",
-            "DraftYear": "",
-            "GameScope": "",
-            "GameSegment": "",
-            "Height": "",
-            "LastNGames": "0",
-            "LeagueID": "00",
-            "Location": "",
-            "MeasureType": measure_type,
-            "Month": "0",
-            "OpponentTeamID": "0",
-            "Outcome": "",
-            "PORound": "0",
-            "PaceAdjust": "N",
-            "PerMode": "PerGame",
-            "Period": "0",
-            "PlayerExperience": "",
-            "PlayerPosition": "",
-            "Season": season,
-            "SeasonSegment": "",
-            "SeasonType": "Regular Season",
-            "ShotClockRange": "",
-            "StarterBench": "",
-            "TeamID": "0",
-            "TwoWay": "0",
-            "VsConference": "",
-            "VsDivision": "",
-        }
-
-        query = urllib.parse.urlencode(params)
-        url = self.BASE_URL + "?" + query
-
-        last_error = None
-
-        for attempt in range(self.retries):
-
-            request = urllib.request.Request(
-                url,
-                headers=self.HEADERS
+        if not isinstance(team, dict):
+            raise ValueError(
+                "Team statistics must be a dictionary."
             )
 
-            try:
-                with urllib.request.urlopen(
-                    request,
-                    timeout=self.timeout
-                ) as response:
-
-                    raw = response.read().decode("utf-8")
-
-                payload = json.loads(raw)
-
-                result_sets = payload.get("resultSets")
-
-                if not result_sets:
-                    raise NBADataError(
-                        "NBA returned no statistics."
-                    )
-
-                dataset = result_sets[0]
-
-                headers = dataset.get("headers", [])
-                rows = dataset.get("rowSet", [])
-
-                if not headers or not rows:
-                    raise NBADataError(
-                        "NBA statistics are empty."
-                    )
-
-                return [
-                    dict(zip(headers, row))
-                    for row in rows
-                ]
-
-            except urllib.error.HTTPError as exc:
-
-                last_error = exc
-
-                if exc.code not in (429, 500, 502, 503, 504):
-                    raise NBADataError(
-                        f"NBA {measure_type} HTTP error: "
-                        f"{exc.code} {exc.reason}"
-                    )
-
-            except (
-                urllib.error.URLError,
-                TimeoutError,
-                socket.timeout,
-                json.JSONDecodeError,
-            ) as exc:
-
-                last_error = exc
-
-            if attempt < self.retries - 1:
-                time.sleep(2 ** (attempt + 1))
-
-        raise NBADataError(
-            f"NBA {measure_type} request failed after "
-            f"{self.retries} attempts: {last_error}"
-        )
-
-    def get_all_team_stats(
-        self,
-        season=None,
-        force_refresh=False
-    ):
-
-        season = season or self.current_season()
-        cache_key = season
-
-        with self._lock:
-            if not force_refresh and cache_key in self._cache:
-                return self._cache[cache_key]
-
-        base_data = self._request_stats(
-            season,
-            "Base"
-        )
-
-        advanced_data = self._request_stats(
-            season,
-            "Advanced"
-        )
-
-        advanced_lookup = {
-            row["TEAM_ID"]: row
-            for row in advanced_data
-        }
-
-        teams = {}
-
-        for row in base_data:
-
-            team_id = row.get("TEAM_ID")
-            advanced = advanced_lookup.get(team_id)
-
-            if not advanced:
-                continue
-
-            try:
-                ppg = float(row["PTS"])
-                plus_minus = float(row["PLUS_MINUS"])
-                win_pct = float(row["W_PCT"])
-                pace = float(advanced["PACE"])
-
-                off_rating = float(advanced["OFF_RATING"])
-                def_rating = float(advanced["DEF_RATING"])
-
-                if pace <= 0:
-                    continue
-
-                if not 0 <= win_pct <= 1:
-                    continue
-
-                team = {
-                    "team_id": team_id,
-                    "team_name": row["TEAM_NAME"],
-                    "ppg": ppg,
-                    "opp_ppg": ppg - plus_minus,
-                    "pace": pace,
-                    "win_pct": win_pct,
-                    "off_rating": off_rating,
-                    "def_rating": def_rating,
-                    "net_rating": off_rating - def_rating,
-                    "games_played": int(row["GP"]),
-                    "season": season,
-                    "data_status": "SEASON_DATA",
-                }
-
-                teams[row["TEAM_NAME"].lower()] = team
-
-            except (KeyError, TypeError, ValueError):
-                continue
-
-        if not teams:
-            raise NBADataError(
-                "No valid NBA team statistics were found."
-            )
-
-        with self._lock:
-            self._cache[cache_key] = teams
-
-        return teams
-
-    def get_team_stats(self, team_name, season=None):
-
-        if not team_name:
-            raise NBADataError("Team name is required.")
-
-        teams = self.get_all_team_stats(season)
-
-        search_name = team_name.strip().lower()
-
-        if search_name in teams:
-            return dict(teams[search_name])
-
-        matches = [
-            team for name, team in teams.items()
-            if search_name in name
+        missing = [
+            key for key in self.REQUIRED_STATS
+            if key not in team
         ]
 
-        if len(matches) == 1:
-            return dict(matches[0])
-
-        if len(matches) > 1:
-            raise NBADataError(
-                f"Ambiguous team name: {team_name}"
+        if missing:
+            raise ValueError(
+                "Missing statistics: "
+                + ", ".join(missing)
             )
 
-        raise NBADataError(
-            f"Team not found: {team_name}"
+        for key in self.REQUIRED_STATS:
+
+            try:
+                value = float(team[key])
+            except (TypeError, ValueError):
+                raise ValueError(
+                    "Invalid statistic: " + key
+                )
+
+            if not math.isfinite(value):
+                raise ValueError(
+                    "Non-finite statistic: " + key
+                )
+
+        if float(team["ppg"]) < 0:
+            raise ValueError("PPG cannot be negative.")
+
+        if float(team["opp_ppg"]) < 0:
+            raise ValueError(
+                "Opponent PPG cannot be negative."
+            )
+
+        if float(team["pace"]) <= 0:
+            raise ValueError(
+                "Pace must be greater than zero."
+            )
+
+        if not 0 <= float(team["win_pct"]) <= 1:
+            raise ValueError(
+                "win_pct must be between 0 and 1."
+            )
+
+    @staticmethod
+    def _optional_number(team, key):
+
+        value = team.get(key)
+
+        if value is None:
+            return None
+
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+
+        if not math.isfinite(number):
+            return None
+
+        return number
+
+    def _calculate_team_rating(self, team):
+
+        off_rating = self._optional_number(
+            team,
+            "off_rating"
         )
 
-    def get_matchup_stats(
+        def_rating = self._optional_number(
+            team,
+            "def_rating"
+        )
+
+        net_rating = self._optional_number(
+            team,
+            "net_rating"
+        )
+
+        if net_rating is None:
+            if (
+                off_rating is not None
+                and def_rating is not None
+            ):
+                net_rating = off_rating - def_rating
+
+        return {
+            "off_rating": off_rating,
+            "def_rating": def_rating,
+            "net_rating": net_rating,
+        }
+
+    def analyze_game(
         self,
         home_team,
         away_team,
-        season=None
+        home_stats,
+        away_stats
     ):
 
-        home_stats = self.get_team_stats(
-            home_team,
-            season
+        self._validate_team(home_stats)
+        self._validate_team(away_stats)
+
+        if not home_team or not away_team:
+            raise ValueError(
+                "Both team names are required."
+            )
+
+        if (
+            str(home_team).strip().lower()
+            == str(away_team).strip().lower()
+        ):
+            raise ValueError(
+                "Home and away teams cannot be the same."
+            )
+
+        home_ppg = float(home_stats["ppg"])
+        away_ppg = float(away_stats["ppg"])
+
+        home_def = float(home_stats["opp_ppg"])
+        away_def = float(away_stats["opp_ppg"])
+
+        home_pace = float(home_stats["pace"])
+        away_pace = float(away_stats["pace"])
+
+        average_pace = (
+            home_pace + away_pace
+        ) / 2
+
+        # Basic points projection.
+        home_basic = (
+            (home_ppg + away_def) / 2
+        ) * (average_pace / 100)
+
+        away_basic = (
+            (away_ppg + home_def) / 2
+        ) * (average_pace / 100)
+
+        home_rating = self._calculate_team_rating(
+            home_stats
         )
 
-        away_stats = self.get_team_stats(
-            away_team,
-            season
+        away_rating = self._calculate_team_rating(
+            away_stats
         )
 
-        return home_stats, away_stats
-        
+        home_off = home_rating["off_rating"]
+        away_off = away_rating["off_rating"]
+
+        home_def_rating = home_rating["def_rating"]
+        away_def_rating = away_rating["def_rating"]
+
+        advanced_available = all(
+            value is not None
+            for value in (
+                home_off,
+                away_off,
+                home_def_rating,
+                away_def_rating,
+            )
+        )
+
+        if advanced_available:
+
+            # Advanced rating based projection.
+            home_advanced = (
+                home_off + away_def_rating
+            ) / 2
+
+            away_advanced = (
+                away_off + home_def_rating
+            ) / 2
+
+            home_expected = (
+                home_basic * 0.35
+                + home_advanced
+                * (average_pace / 100) * 0.65
+            )
+
+            away_expected = (
+                away_basic * 0.35
+                + away_advanced
+                * (average_pace / 100) * 0.65
+            )
+
+            rating_source = "ADVANCED_RATINGS"
+
+        else:
+
+            home_expected = home_basic
+            away_expected = away_basic
+
+            rating_source = "BASIC_STATS"
+
+        # Home court advantage.
+        home_expected += 2.0
+
+        # Small adjustment using net rating difference.
+        home_net = home_rating["net_rating"]
+        away_net = away_rating["net_rating"]
+
+        if (
+            home_net is not None
+            and away_net is not None
+        ):
+
+            net_difference = (
+                home_net - away_net
+            )
+
+            adjustment = max(
+                -5.0,
+                min(5.0, net_difference * 0.05)
+            )
+
+            home_expected += adjustment
+            away_expected -= adjustment
+
+        # Prevent impossible negative score projections.
+        home_expected = max(0.0, home_expected)
+        away_expected = max(0.0, away_expected)
+
+        projected_total = (
+            home_expected + away_expected
+        )
+
+        projected_margin = (
+            home_expected - away_expected
+        )
+
+        # Win probability estimate.
+        exponent = max(
+            -20,
+            min(20, -projected_margin / 12)
+        )
+
+        home_probability = 1 / (
+            1 + math.exp(exponent)
+        )
+
+        away_probability = (
+            1 - home_probability
+        )
+
+        winner = (
+            home_team
+            if home_probability >= 0.5
+            else away_team
+        )
+
+        confidence = max(
+            home_probability,
+            away_probability
+        ) * 100
+
+        return {
+            "home_team": home_team,
+            "away_team": away_team,
+
+            "home_projected_points": round(
+                home_expected, 1
+            ),
+
+            "away_projected_points": round(
+                away_expected, 1
+            ),
+
+            "projected_total": round(
+                projected_total, 1
+            ),
+
+            "projected_margin": round(
+                projected_margin, 1
+            ),
+
+            "predicted_winner": winner,
+
+            "home_win_probability": round(
+                home_probability * 100, 1
+            ),
+
+            "away_win_probability": round(
+                away_probability * 100, 1
+            ),
+
+            "model_confidence": round(
+                confidence, 1
+            ),
+
+            "rating_source": rating_source,
+
+            "status": "ESTIMATE",
+        }
