@@ -62,6 +62,9 @@ jobs:
           java -version
           buildozer --version
 
+       - name: Test NBA Engine
+        run: python nba_test.py
+
       - name: Build Android APK
         run: |
           buildozer -v android debug 2>&1 | tee build.log
