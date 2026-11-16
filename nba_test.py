@@ -1,143 +1,68 @@
 
-from nba_integration import GUNXNBAIntegration
-
-
-def print_line():
-    print("=" * 50)
+from nba_engine import NBAAnalysisEngine
 
 
 def run_test():
 
-    print_line()
-    print("       GUNX SMART NBA - SYSTEM TEST")
-    print_line()
+    print("=" * 50)
+    print("       GUNX SMART NBA - ENGINE TEST")
+    print("=" * 50)
 
-    gunx = GUNXNBAIntegration()
+    engine = NBAAnalysisEngine()
 
     home = "Boston Celtics"
     away = "Los Angeles Lakers"
 
-    print("\nMATCH:", home, "vs", away)
-    print("\nFetching NBA season statistics...")
+    home_stats = {
+        "ppg": 118.5,
+        "opp_ppg": 108.2,
+        "pace": 98.5,
+        "win_pct": 0.72,
+        "off_rating": 120.5,
+        "def_rating": 108.5,
+        "net_rating": 12.0,
+    }
 
-    result = gunx.analyze_match(
+    away_stats = {
+        "ppg": 114.2,
+        "opp_ppg": 112.8,
+        "pace": 100.2,
+        "win_pct": 0.61,
+        "off_rating": 116.0,
+        "def_rating": 112.0,
+        "net_rating": 4.0,
+    }
+
+    print("\nAnalyzing:", home, "vs", away)
+
+    result = engine.analyze_game(
         home,
-        away
+        away,
+        home_stats,
+        away_stats
     )
 
-    # Check for errors.
-    if result.get("status") != "SUCCESS":
-
-        print("\nTEST FAILED")
-        print("Reason:", result.get("message"))
-
-        return False
-
-    home_stats = result["home_team_stats"]
-    away_stats = result["away_team_stats"]
-
-    print("\nNBA DATA RECEIVED SUCCESSFULLY")
-
-    print("\nDATA INFORMATION")
-    print("-" * 40)
-
-    print("Data Source:", result.get("data_source"))
-    print("Data Status:", result.get("data_status"))
-    print("Season:", result.get("season"))
-
-    print("\nHOME TEAM")
-    print("-" * 40)
-
-    print("Team:", result["home_team"])
-    print("PPG:", home_stats.get("ppg"))
-    print("Opponent PPG:", home_stats.get("opp_ppg"))
-    print("Pace:", home_stats.get("pace"))
-    print("Win Percentage:", home_stats.get("win_pct"))
-    print("Offensive Rating:", home_stats.get("off_rating"))
-    print("Defensive Rating:", home_stats.get("def_rating"))
-    print("Net Rating:", home_stats.get("net_rating"))
-    print("Games Played:", home_stats.get("games_played"))
-
-    print("\nAWAY TEAM")
-    print("-" * 40)
-
-    print("Team:", result["away_team"])
-    print("PPG:", away_stats.get("ppg"))
-    print("Opponent PPG:", away_stats.get("opp_ppg"))
-    print("Pace:", away_stats.get("pace"))
-    print("Win Percentage:", away_stats.get("win_pct"))
-    print("Offensive Rating:", away_stats.get("off_rating"))
-    print("Defensive Rating:", away_stats.get("def_rating"))
-    print("Net Rating:", away_stats.get("net_rating"))
-    print("Games Played:", away_stats.get("games_played"))
-
-    print("\nGUNX ADVANCED ANALYSIS")
-    print("-" * 40)
-
-    print(
-        "Rating Source:",
-        result.get("rating_source")
-    )
-
-    print(
-        "Projected Score:",
-        result["home_projected_points"],
-        "-",
-        result["away_projected_points"]
-    )
-
-    print(
-        "Projected Total:",
-        result["projected_total"]
-    )
-
-    print(
-        "Projected Margin:",
-        result["projected_margin"]
-    )
-
-    print(
-        "Predicted Winner:",
-        result["predicted_winner"]
-    )
-
-    print(
-        "Home Win Probability:",
-        result["home_win_probability"], "%"
-    )
-
-    print(
-        "Away Win Probability:",
-        result["away_win_probability"], "%"
-    )
-
-    print(
-        "Model Confidence:",
-        result["model_confidence"], "%"
-    )
-
-    print("\nVALIDATION")
-
-    required_fields = [
+    required = [
         "home_projected_points",
         "away_projected_points",
         "projected_total",
+        "projected_margin",
         "predicted_winner",
         "home_win_probability",
         "away_win_probability",
+        "model_confidence",
         "rating_source",
     ]
 
     missing = [
-        field
-        for field in required_fields
-        if field not in result
+        key for key in required
+        if key not in result
     ]
 
     if missing:
-        print("MISSING FIELDS:", missing)
-        print("\nTEST FAILED")
-        return False
+        raise AssertionError(
+            "Missing fields: " + str(missing)
+        )
 
     probability_sum = (
         result["home_win_probability"]
@@ -145,31 +70,51 @@ def run_test():
     )
 
     if abs(probability_sum - 100) > 0.2:
-        print("Probability validation failed.")
-        print("Probability sum:", probability_sum)
-        return False
+        raise AssertionError(
+            "Invalid win probabilities."
+        )
 
-    print("Required fields: PASS")
-    print("Probability validation: PASS")
+    if abs(
+        result["projected_total"]
+        - (
+            result["home_projected_points"]
+            + result["away_projected_points"]
+        )
+    ) > 0.2:
+        raise AssertionError(
+            "Projected total calculation failed."
+        )
 
-    if (
-        home_stats.get("net_rating") is not None
-        and away_stats.get("net_rating") is not None
-    ):
-        print("Net Rating validation: PASS")
-    else:
-        print("Net Rating validation: NOT AVAILABLE")
+    print("\nPROJECTED SCORE")
+    print(
+        result["home_team"],
+        result["home_projected_points"],
+        "-",
+        result["away_projected_points"],
+        result["away_team"]
+    )
 
-    print_line()
-    print("       GUNX SYSTEM TEST PASSED")
-    print_line()
+    print("\nPROJECTED TOTAL:", result["projected_total"])
+    print("PREDICTED WINNER:", result["predicted_winner"])
 
-    return True
+    print(
+        "HOME WIN PROBABILITY:",
+        result["home_win_probability"], "%"
+    )
+
+    print(
+        "AWAY WIN PROBABILITY:",
+        result["away_win_probability"], "%"
+    )
+
+    print("RATING SOURCE:", result["rating_source"])
+
+    print("\nVALIDATION: PASSED")
+
+    print("=" * 50)
+    print("       GUNX ENGINE TEST PASSED")
+    print("=" * 50)
 
 
 if __name__ == "__main__":
-    success = run_test()
-
-    if not success:
-        raise SystemExit(1)
-    
+    run_test()
