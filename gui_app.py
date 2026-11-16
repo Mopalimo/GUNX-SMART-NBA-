@@ -1,7 +1,9 @@
 
 from datetime import datetime
+from threading import Thread
 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.metrics import dp, sp
 from kivy.core.window import Window
 from kivy.uix.boxlayout import BoxLayout
@@ -13,7 +15,9 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.graphics import Color, RoundedRectangle
 from kivy.utils import get_color_from_hex
 from kivy.uix.textinput import TextInput
-from nba_engine import NBAAnalysisEngine
+
+from nba_integration import GUNXNBAIntegration
+
 
 BG = "#070D1B"
 PANEL = "#101C33"
@@ -22,13 +26,14 @@ GOLD = "#F5B900"
 WHITE = "#FFFFFF"
 MUTED = "#A9B8D0"
 GREEN = "#19D66B"
-
+RED = "#FF5555"
 
 
 class GunxCard(BoxLayout):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         self.orientation = "vertical"
         self.padding = dp(13)
         self.spacing = dp(8)
@@ -54,6 +59,7 @@ class GunxButton(Button):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         self.background_normal = ""
         self.background_down = ""
         self.background_color = get_color_from_hex(BLUE)
@@ -64,10 +70,14 @@ class GunxButton(Button):
 
 class GunxSmartNBAApp(App):
 
-        def build(self):
+    def build(self):
+
         self.title = "GUNX SMART NBA"
 
-        self.nba_engine = NBAAnalysisEngine()
+        # NBA integration
+        self.nba_integration = GUNXNBAIntegration()
+
+        self.analysis_running = False
 
         Window.clearcolor = get_color_from_hex(BG)
 
@@ -99,12 +109,24 @@ class GunxSmartNBAApp(App):
             self.manager.add_widget(screen)
 
         self.root_layout.add_widget(self.manager)
+
         self.build_bottom_navigation()
 
         return self.root_layout
 
-    def label(self, text, size=14, color=WHITE,
-              bold=False, height=None):
+    # -------------------------------------------------
+    # GENERAL UI
+    # -------------------------------------------------
+
+    def label(
+        self,
+        text,
+        size=14,
+        color=WHITE,
+        bold=False,
+        height=None
+    ):
+
         return Label(
             text=str(text),
             font_size=sp(size),
@@ -118,6 +140,7 @@ class GunxSmartNBAApp(App):
         )
 
     def build_header(self):
+
         header = BoxLayout(
             orientation="vertical",
             size_hint_y=None,
@@ -157,6 +180,7 @@ class GunxSmartNBAApp(App):
         self.root_layout.add_widget(header)
 
     def build_navigation(self):
+
         nav = ScrollView(
             size_hint_y=None,
             height=dp(48),
@@ -167,6 +191,7 @@ class GunxSmartNBAApp(App):
             size_hint_x=None,
             spacing=dp(5)
         )
+
         row.bind(minimum_width=row.setter("width"))
 
         items = [
@@ -178,22 +203,27 @@ class GunxSmartNBAApp(App):
         ]
 
         for title, page in items:
+
             btn = GunxButton(
                 text=title,
                 size_hint_x=None,
                 width=dp(112),
                 background_color=get_color_from_hex("#142B50")
             )
+
             btn.bind(
                 on_release=lambda instance, p=page:
                 self.open_page(p)
             )
+
             row.add_widget(btn)
 
         nav.add_widget(row)
+
         self.root_layout.add_widget(nav)
 
     def build_bottom_navigation(self):
+
         nav = BoxLayout(
             size_hint_y=None,
             height=dp(54),
@@ -209,6 +239,7 @@ class GunxSmartNBAApp(App):
         ]
 
         for title, page in items:
+
             btn = Button(
                 text=title,
                 font_size=sp(10),
@@ -217,10 +248,12 @@ class GunxSmartNBAApp(App):
                 background_color=get_color_from_hex("#14233D"),
                 color=get_color_from_hex(WHITE)
             )
+
             btn.bind(
                 on_release=lambda instance, p=page:
                 self.open_page(p)
             )
+
             nav.add_widget(btn)
 
         self.root_layout.add_widget(nav)
@@ -229,6 +262,7 @@ class GunxSmartNBAApp(App):
         self.manager.current = page
 
     def make_page(self):
+
         scroll = ScrollView(
             do_scroll_x=False,
             bar_width=dp(3)
@@ -240,23 +274,35 @@ class GunxSmartNBAApp(App):
             spacing=dp(10),
             size_hint_y=None
         )
+
         content.bind(minimum_height=content.setter("height"))
 
         scroll.add_widget(content)
+
         return scroll, content
 
     def add_card(self, parent, title, description):
+
         card = GunxCard()
+
         card.add_widget(self.label(
             title, 17, GOLD, True, 35
         ))
+
         card.add_widget(self.label(
             description, 13, MUTED, False, 45
         ))
+
         parent.add_widget(card)
+
         return card
 
+    # -------------------------------------------------
+    # HOME PAGE
+    # -------------------------------------------------
+
     def home_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -290,7 +336,7 @@ class GunxSmartNBAApp(App):
         self.add_card(
             content,
             "🔴 LIVE NBA SCORES",
-            "Live scores will appear when a verified data source is connected."
+            "Live scores require a verified live game data source."
         )
 
         self.add_card(
@@ -300,13 +346,18 @@ class GunxSmartNBAApp(App):
         )
 
         content.add_widget(self.label(
-            "DATA STATUS: WAITING FOR NBA DATA",
-            12, GREEN, True, 35
+            "DATA STATUS: NBA SEASON DATA INTEGRATION READY",
+            12, GREEN, True, 45
         ))
 
         return scroll
 
+    # -------------------------------------------------
+    # DAILY PAGE
+    # -------------------------------------------------
+
     def daily_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -333,8 +384,12 @@ class GunxSmartNBAApp(App):
 
         return scroll
 
-    
+    # -------------------------------------------------
+    # NBA AI ANALYSIS PAGE
+    # -------------------------------------------------
+
     def analysis_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -343,26 +398,25 @@ class GunxSmartNBAApp(App):
         ))
 
         content.add_widget(self.label(
-            "ENTER TEAM STATISTICS",
-            14, MUTED, True, 35
+            "NBA LIVE STATISTICS INTEGRATION",
+            13, MUTED, True, 35
+        ))
+
+        content.add_widget(self.label(
+            "Enter the two NBA team names. "
+            "GUNX will retrieve their season statistics.",
+            13, WHITE, False, 55
         ))
 
         self.analysis_inputs = {}
 
         fields = [
-            ("home_name", "HOME TEAM NAME", "Boston Celtics"),
-            ("away_name", "AWAY TEAM NAME", "New York Knicks"),
-            ("home_ppg", "HOME POINTS PER GAME", "115"),
-            ("home_opp", "HOME OPPONENT POINTS PER GAME", "110"),
-            ("home_pace", "HOME PACE", "98"),
-            ("home_win", "HOME WIN RATE (%)", "65"),
-            ("away_ppg", "AWAY POINTS PER GAME", "112"),
-            ("away_opp", "AWAY OPPONENT POINTS PER GAME", "113"),
-            ("away_pace", "AWAY PACE", "97"),
-            ("away_win", "AWAY WIN RATE (%)", "55"),
+            ("home_name", "HOME TEAM", "Boston Celtics"),
+            ("away_name", "AWAY TEAM", "New York Knicks"),
         ]
 
         for key, title, hint in fields:
+
             content.add_widget(self.label(
                 title, 12, GOLD, True, 28
             ))
@@ -371,103 +425,253 @@ class GunxSmartNBAApp(App):
                 hint_text=hint,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(43),
-                font_size=sp(14),
+                height=dp(48),
+                font_size=sp(15),
                 foreground_color=get_color_from_hex(WHITE),
                 background_color=get_color_from_hex(PANEL),
                 cursor_color=get_color_from_hex(GOLD),
-                padding=[dp(10), dp(10)]
+                padding=[dp(10), dp(12)]
             )
 
             self.analysis_inputs[key] = field
+
             content.add_widget(field)
 
-        analyze_btn = GunxButton(
-            text="RUN GUNX AI ANALYSIS",
+        self.analyze_btn = GunxButton(
+            text="RUN GUNX NBA ANALYSIS",
             size_hint_y=None,
-            height=dp(50)
+            height=dp(52)
         )
 
-        analyze_btn.bind(
-            on_release=lambda instance: self.run_nba_analysis()
+        self.analyze_btn.bind(
+            on_release=lambda instance:
+            self.run_nba_analysis()
         )
 
-        content.add_widget(analyze_btn)
+        content.add_widget(self.analyze_btn)
+
+        self.analysis_status = self.label(
+            "STATUS: READY",
+            12, GREEN, True, 35
+        )
+
+        content.add_widget(self.analysis_status)
 
         self.analysis_output = self.label(
-            "ANALYSIS RESULTS WILL APPEAR HERE",
-            13, GREEN, True, 180
+            "NBA ANALYSIS RESULTS WILL APPEAR HERE",
+            13, WHITE, True, 280
         )
 
         self.analysis_output.text_size = (
             Window.width - dp(45), None
         )
+
         self.analysis_output.valign = "top"
 
         content.add_widget(self.analysis_output)
 
         return scroll
 
+    # -------------------------------------------------
+    # RUN NBA INTEGRATION
+    # -------------------------------------------------
+
     def run_nba_analysis(self):
+
+        if self.analysis_running:
+            return
+
+        home_name = self.analysis_inputs["home_name"].text.strip()
+        away_name = self.analysis_inputs["away_name"].text.strip()
+
+        if not home_name or not away_name:
+
+            self.analysis_status.text = "STATUS: INPUT ERROR"
+
+            self.analysis_output.text = (
+                "Please enter both home and away teams."
+            )
+
+            return
+
+        if home_name.lower() == away_name.lower():
+
+            self.analysis_status.text = "STATUS: INPUT ERROR"
+
+            self.analysis_output.text = (
+                "Home and away teams cannot be the same."
+            )
+
+            return
+
+        self.analysis_running = True
+
+        self.analyze_btn.disabled = True
+        self.analyze_btn.text = "ANALYZING NBA DATA..."
+
+        self.analysis_status.text = (
+            "STATUS: CONNECTING TO NBA DATA PROVIDER..."
+        )
+
+        self.analysis_status.color = get_color_from_hex(GOLD)
+
+        self.analysis_output.text = (
+            "GUNX is retrieving NBA season statistics.\n\n"
+            "Please wait..."
+        )
+
+        Thread(
+            target=self._nba_analysis_worker,
+            args=(home_name, away_name),
+            daemon=True
+        ).start()
+
+    def _nba_analysis_worker(self, home_name, away_name):
+
         try:
-            data = {
-                key: widget.text.strip()
-                for key, widget in self.analysis_inputs.items()
-            }
 
-            home_name = data["home_name"]
-            away_name = data["away_name"]
-
-            if not home_name or not away_name:
-                raise ValueError("Enter both team names.")
-
-            home_stats = {
-                "ppg": float(data["home_ppg"]),
-                "opp_ppg": float(data["home_opp"]),
-                "pace": float(data["home_pace"]),
-                "win_pct": float(data["home_win"]) / 100
-            }
-
-            away_stats = {
-                "ppg": float(data["away_ppg"]),
-                "opp_ppg": float(data["away_opp"]),
-                "pace": float(data["away_pace"]),
-                "win_pct": float(data["away_win"]) / 100
-            }
-
-            result = self.nba_engine.analyze_game(
+            result = self.nba_integration.analyze_match(
                 home_name,
-                away_name,
-                home_stats,
-                away_stats
+                away_name
             )
 
-            self.analysis_output.text = (
-                "GUNX ANALYSIS RESULTS\n\n"
-                f"HOME: {result['home_team']}\n"
-                f"PROJECTED POINTS: "
-                f"{result['home_projected_points']}\n"
-                f"WIN PROBABILITY: "
-                f"{result['home_win_probability']}%\n\n"
-                f"AWAY: {result['away_team']}\n"
-                f"PROJECTED POINTS: "
-                f"{result['away_projected_points']}\n"
-                f"WIN PROBABILITY: "
-                f"{result['away_win_probability']}%\n\n"
-                f"PROJECTED TOTAL: "
-                f"{result['projected_total']}\n"
-                f"PREDICTED WINNER: "
-                f"{result['predicted_winner']}\n\n"
-                "STATUS: ESTIMATE - NOT GUARANTEED"
+            Clock.schedule_once(
+                lambda dt:
+                self._display_nba_result(result),
+                0
             )
 
-        except (ValueError, TypeError) as error:
-            self.analysis_output.text = (
-                "INPUT ERROR:\n" + str(error)
+        except Exception as exc:
+
+            error_result = {
+                "status": "ERROR",
+                "message": str(exc),
+                "data_status": "SYSTEM_ERROR"
+            }
+
+            Clock.schedule_once(
+                lambda dt:
+                self._display_nba_result(error_result),
+                0
             )
-            
+
+    # -------------------------------------------------
+    # DISPLAY NBA RESULTS
+    # -------------------------------------------------
+
+    def _display_nba_result(self, result):
+
+        self.analysis_running = False
+
+        self.analyze_btn.disabled = False
+        self.analyze_btn.text = "RUN GUNX NBA ANALYSIS"
+
+        if result.get("status") != "SUCCESS":
+
+            self.analysis_status.text = (
+                "STATUS: NBA DATA ERROR"
+            )
+
+            self.analysis_status.color = get_color_from_hex(RED)
+
+            self.analysis_output.text = (
+                "ANALYSIS UNAVAILABLE\n\n"
+                + str(result.get(
+                    "message",
+                    "Unknown NBA integration error."
+                ))
+                + "\n\nPlease check your team names "
+                "and internet connection."
+            )
+
+            return
+
+        home_stats = result.get("home_team_stats", {})
+        away_stats = result.get("away_team_stats", {})
+
+        home_team = result.get(
+            "home_team",
+            home_stats.get("team_name", "HOME TEAM")
+        )
+
+        away_team = result.get(
+            "away_team",
+            away_stats.get("team_name", "AWAY TEAM")
+        )
+
+        home_points = result.get(
+            "home_projected_points",
+            "N/A"
+        )
+
+        away_points = result.get(
+            "away_projected_points",
+            "N/A"
+        )
+
+        home_probability = result.get(
+            "home_win_probability",
+            "N/A"
+        )
+
+        away_probability = result.get(
+            "away_win_probability",
+            "N/A"
+        )
+
+        total = result.get(
+            "projected_total",
+            "N/A"
+        )
+
+        winner = result.get(
+            "predicted_winner",
+            "N/A"
+        )
+
+        season = result.get(
+            "season",
+            "N/A"
+        )
+
+        games = result.get("games_played", {})
+
+        self.analysis_status.text = (
+            "STATUS: SUCCESS - NBA SEASON DATA"
+        )
+
+        self.analysis_status.color = get_color_from_hex(GREEN)
+
+        self.analysis_output.text = (
+            "👑 GUNX SMART NBA RESULTS\n\n"
+
+            f"HOME: {home_team}\n"
+            f"PROJECTED POINTS: {home_points}\n"
+            f"WIN PROBABILITY: {home_probability}%\n"
+            f"GAMES PLAYED: {games.get('home', 'N/A')}\n\n"
+
+            f"AWAY: {away_team}\n"
+            f"PROJECTED POINTS: {away_points}\n"
+            f"WIN PROBABILITY: {away_probability}%\n"
+            f"GAMES PLAYED: {games.get('away', 'N/A')}\n\n"
+
+            f"PROJECTED TOTAL: {total}\n"
+            f"PREDICTED WINNER: {winner}\n\n"
+
+            f"NBA SEASON: {season}\n"
+            f"DATA SOURCE: {result.get('data_source', 'N/A')}\n"
+            f"DATA STATUS: {result.get('data_status', 'N/A')}\n\n"
+
+            "MODEL STATUS: ESTIMATE\n"
+            "NOT A GUARANTEED RESULT"
+        )
+
+    # -------------------------------------------------
+    # ODDS PAGE
+    # -------------------------------------------------
 
     def odds_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -489,7 +693,12 @@ class GunxSmartNBAApp(App):
 
         return scroll
 
+    # -------------------------------------------------
+    # PERFORMANCE PAGE
+    # -------------------------------------------------
+
     def performance_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -506,11 +715,20 @@ class GunxSmartNBAApp(App):
         ]
 
         for item in stats:
-            self.add_card(content, item, "Verified results only")
+            self.add_card(
+                content,
+                item,
+                "Verified results only"
+            )
 
         return scroll
 
+    # -------------------------------------------------
+    # LIVE PAGE
+    # -------------------------------------------------
+
     def live_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -520,14 +738,19 @@ class GunxSmartNBAApp(App):
 
         self.add_card(
             content,
-            "LIVE DATA NOT CONNECTED",
-            "Live game information will appear after a data provider "
-            "is configured."
+            "LIVE SCORES NOT CONNECTED",
+            "Season statistics are available through NBA integration. "
+            "Live game scores require a separate live scoreboard source."
         )
 
         return scroll
 
+    # -------------------------------------------------
+    # HISTORY PAGE
+    # -------------------------------------------------
+
     def history_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -543,7 +766,12 @@ class GunxSmartNBAApp(App):
 
         return scroll
 
+    # -------------------------------------------------
+    # ABOUT PAGE
+    # -------------------------------------------------
+
     def about_page(self):
+
         scroll, content = self.make_page()
 
         content.add_widget(self.label(
@@ -564,13 +792,4 @@ class GunxSmartNBAApp(App):
             "Accuracy before quantity. Evidence before predictions."
         )
 
-        content.add_widget(self.label(
-            "GUNX SMART NBA © 2026",
-            13, GOLD, True, 35
-        ))
-
-        return scroll
-
-
-if __name__ == "__main__":
-    GunxSmartNBAApp().run()
+        co
