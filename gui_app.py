@@ -19,6 +19,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.anchorlayout import AnchorLayout
 
 from nba_integration import GUNXNBAIntegration
+from daily_picks import DailyPicksService
 
 
 BG = "#070D1B"
@@ -83,6 +84,11 @@ class GunxSmartNBAApp(App):
         self.icon = "gunx_logo.png"
 
         self.nba_integration = GUNXNBAIntegration()
+        self.daily_picks_service = DailyPicksService(
+            data_provider=self.nba_integration.data_provider,
+            engine=self.nba_integration.engine
+        )
+        self.daily_picks_running = False
         self.analysis_running = False
 
         Window.clearcolor = get_color_from_hex(BG)
@@ -490,34 +496,122 @@ class GunxSmartNBAApp(App):
     def daily_page(self):
 
         scroll, content = self.make_page()
-
         content.add_widget(self.label(
-            "DAILY TOP 10 PICKS",
-            21, GOLD, True, 48
+            "NBA DAILY TOP 5 PICKS", 22, GOLD, True, 48
         ))
-
         content.add_widget(self.label(
-            "NBA BEST PREDICTIONS",
-            13, MUTED, True, 30
+            "AUTOMATIC FIXTURE SCAN + TEAM STATISTICS ANALYSIS",
+            12, MUTED, True, 35
         ))
-
-        self.add_card(
-            content,
-            "NO VERIFIED PICKS YET",
-            "The prediction engine will publish picks after receiving "
-            "valid NBA fixtures, statistics and market data."
+        self.daily_status = self.label(
+            "STATUS: READY — TAP TO SCAN TODAY'S NBA GAMES",
+            12, GREEN, True, 45
         )
+        content.add_widget(self.daily_status)
 
-        content.add_widget(self.label(
-            "We will not invent matches, odds or confidence scores.",
-            12, GREEN, True, 48
+        self.daily_refresh_btn = GunxButton(
+            text="SCAN TODAY'S NBA GAMES",
+            size_hint_y=None, height=dp(52)
+        )
+        self.daily_refresh_btn.bind(
+            on_release=lambda instance: self.run_daily_picks()
+        )
+        content.add_widget(self.daily_refresh_btn)
+
+        self.daily_results_box = GunxCard()
+        self.daily_results_box.add_widget(self.label(
+            "YOUR TOP 5 WILL APPEAR HERE", 15, GOLD, True, 38
         ))
-
+        self.daily_results_box.add_widget(self.label(
+            "GUNX scans today's fixture list, retrieves NBA team-season "
+            "statistics and ranks available moneyline predictions.",
+            12, MUTED, False, 75
+        ))
+        content.add_widget(self.daily_results_box)
+        content.add_widget(self.label(
+            "MODEL FAIR ODDS ARE CALCULATED FROM GUNX PROBABILITIES; "
+            "THEY ARE NOT LIVE BETPAWA ODDS. Injuries and confirmed "
+            "lineups are not included yet.",
+            11, MUTED, False, 85
+        ))
         return scroll
 
-    # -------------------------------------------------
-    # NBA AI ANALYSIS PAGE
-    # -------------------------------------------------
+    def run_daily_picks(self):
+
+        if self.daily_picks_running:
+            return
+        self.daily_picks_running = True
+        self.daily_refresh_btn.disabled = True
+        self.daily_refresh_btn.text = "SCANNING NBA FIXTURES..."
+        self.daily_status.text = (
+            "STATUS: FETCHING TODAY'S FIXTURES AND TEAM STATS..."
+        )
+        self.daily_status.color = get_color_from_hex(GOLD)
+        Thread(target=self._daily_picks_worker, daemon=True).start()
+
+    def _daily_picks_worker(self):
+
+        try:
+            result = self.daily_picks_service.build_daily_top_five()
+        except Exception as exc:
+            result = {"status": "ERROR", "message": str(exc), "picks": []}
+        Clock.schedule_once(
+            lambda dt: self._display_daily_picks(result), 0
+        )
+
+    def _display_daily_picks(self, result):
+
+        self.daily_picks_running = False
+        self.daily_refresh_btn.disabled = False
+        self.daily_refresh_btn.text = "REFRESH DAILY TOP 5"
+        self.daily_results_box.clear_widgets()
+        status = result.get("status", "ERROR")
+        picks = result.get("picks", [])
+
+        if status == "SUCCESS" and picks:
+            self.daily_status.text = (
+                "STATUS: COMPLETE — "
+                + str(result.get("games_analyzed", 0))
+                + " GAMES ANALYZED"
+            )
+            self.daily_status.color = get_color_from_hex(GREEN)
+            self.daily_results_box.add_widget(self.label(
+                "🏆  GUNX TOP " + str(len(picks)) + " PICKS",
+                16, GOLD, True, 40
+            ))
+            for index, pick in enumerate(picks, 1):
+                self.daily_results_box.add_widget(self.label(
+                    str(index) + ". " + pick["match"],
+                    13, WHITE, True, 30
+                ))
+                self.daily_results_box.add_widget(self.label(
+                    pick["selection"] + "  |  "
+                    + str(pick["model_probability"])
+                    + "% model probability",
+                    12, GREEN, True, 28
+                ))
+                self.daily_results_box.add_widget(self.label(
+                    "MODEL FAIR ODDS: " + str(pick["model_fair_odds"])
+                    + "  |  Projected total: "
+                    + str(pick["projected_total"]),
+                    11, MUTED, False, 27
+                ))
+        else:
+            self.daily_status.text = (
+                "STATUS: " + str(status) + " — "
+                + str(result.get("message", "No verified picks available."))
+            )
+            self.daily_status.color = get_color_from_hex(RED)
+            self.daily_results_box.add_widget(self.label(
+                "NO VERIFIED PICKS AVAILABLE", 15, GOLD, True, 42
+            ))
+            self.daily_results_box.add_widget(self.label(
+                str(result.get(
+                    "message",
+                    "Fixtures or team statistics could not be retrieved."
+                )),
+                12, MUTED, False, 75
+            ))
 
     def analysis_page(self):
 
