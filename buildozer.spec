@@ -8,6 +8,7 @@ package.domain = org.gunx
 
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,json
+icon.filename = %(source.dir)s/gunx_logo.png
 
 version = 0.1
 
