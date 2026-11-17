@@ -913,7 +913,8 @@ class GunxSmartNBAApp(App):
 
             f"NBA SEASON: {season}\n"
             f"DATA SOURCE: {result.get('data_source', 'N/A')}\n"
-            f"DATA STATUS: {result.get('data_status', 'N/A')}\n\n"
+            f"DATA STATUS: {result.get('data_status', 'N/A')}\n"
+            f"PACE DATA: {result.get('pace_status', 'N/A')}\n\n"
 
             "MODEL STATUS: ESTIMATE\n"
             "NOT A GUARANTEED RESULT"
