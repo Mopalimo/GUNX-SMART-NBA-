@@ -10,6 +10,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
+from kivy.uix.image import Image
 from kivy.uix.button import Button
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.graphics import Color, RoundedRectangle
@@ -142,45 +143,56 @@ class GunxSmartNBAApp(App):
 
         return lbl
 
-    def build_header(self):
+    
+def build_header(self):
 
-        header = BoxLayout(
-            orientation="vertical",
-            size_hint_y=None,
-            height=dp(105),
-            padding=[dp(13), dp(8)],
-            spacing=dp(3)
+    header = BoxLayout(
+        orientation="vertical",
+        size_hint_y=None,
+        height=dp(155),
+        padding=[dp(13), dp(8)],
+        spacing=dp(3)
+    )
+
+    with header.canvas.before:
+        Color(*get_color_from_hex("#0B1934"))
+        header.bg = RoundedRectangle(
+            pos=header.pos,
+            size=header.size,
+            radius=[dp(15)]
         )
 
-        with header.canvas.before:
-            Color(*get_color_from_hex("#0B1934"))
-            header.bg = RoundedRectangle(
-                pos=header.pos,
-                size=header.size,
-                radius=[dp(15)]
-            )
+    header.bind(
+        pos=lambda obj, value: setattr(obj.bg, "pos", value),
+        size=lambda obj, value: setattr(obj.bg, "size", value)
+    )
 
-        header.bind(
-            pos=lambda obj, value: setattr(obj.bg, "pos", value),
-            size=lambda obj, value: setattr(obj.bg, "size", value)
-        )
+    logo = Image(
+        source="gunx_logo.png",
+        size_hint=(None, None),
+        size=(dp(75), dp(75)),
+        allow_stretch=True,
+        keep_ratio=True
+    )
 
-        header.add_widget(self.label(
-            "GUNX SMART NBA",
-            25, GOLD, True, 40
-        ))
+    header.add_widget(logo)
 
-        header.add_widget(self.label(
-            "ANALYZE  |  PREDICT  |  WIN",
-            12, WHITE, True, 23
-        ))
+    header.add_widget(self.label(
+        "GUNX SMART NBA",
+        25, GOLD, True, 40
+    ))
 
-        header.add_widget(self.label(
-            "NBA INTELLIGENCE CENTER",
-            11, MUTED, True, 22
-        ))
+    header.add_widget(self.label(
+        "ANALYZE  |  PREDICT  |  WIN",
+        12, WHITE, True, 23
+    ))
 
-        self.root_layout.add_widget(header)
+    header.add_widget(self.label(
+        "NBA INTELLIGENCE CENTER",
+        11, MUTED, True, 22
+    ))
+
+    self.root_layout.add_widget(header)
 
     def build_navigation(self):
 
