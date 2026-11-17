@@ -1,4 +1,3 @@
-
 import json
 import socket
 import time
@@ -21,16 +20,18 @@ class NBADataProvider:
     HEADERS = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0 Safari/537.36"
         ),
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
         "Origin": "https://www.nba.com",
         "Referer": "https://www.nba.com/",
         "Connection": "keep-alive",
+        "Host": "stats.nba.com",
     }
 
-    def __init__(self, timeout=35, retries=3):
+    def __init__(self, timeout=60, retries=4):
         self.timeout = timeout
         self.retries = retries
         self._cache = {}
@@ -98,6 +99,11 @@ class NBADataProvider:
             )
 
             try:
+                print(
+                    f"[NBA DATA] {measure_type} request "
+                    f"{attempt + 1}/{self.retries}"
+                )
+
                 with urllib.request.urlopen(
                     request,
                     timeout=self.timeout
@@ -133,7 +139,7 @@ class NBADataProvider:
 
                 last_error = exc
 
-                if exc.code not in (429, 500, 502, 503, 504):
+                if exc.code not in (403, 408, 429, 500, 502, 503, 504):
                     raise NBADataError(
                         f"NBA {measure_type} HTTP error: "
                         f"{exc.code} {exc.reason}"
@@ -148,8 +154,25 @@ class NBADataProvider:
 
                 last_error = exc
 
+            except NBADataError:
+                raise
+
+            except Exception as exc:
+                last_error = exc
+
             if attempt < self.retries - 1:
-                time.sleep(2 ** (attempt + 1))
+
+                delay = min(5 * (2 ** attempt), 30)
+
+                print(
+                    f"[NBA DATA] Request failed: {last_error}"
+                )
+
+                print(
+                    f"[NBA DATA] Retrying in {delay} seconds..."
+                )
+
+                time.sleep(delay)
 
         raise NBADataError(
             f"NBA {measure_type} request failed after "
@@ -286,3 +309,4 @@ class NBADataProvider:
         )
 
         return home_stats, away_stats
+        
