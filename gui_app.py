@@ -786,12 +786,6 @@ class GunxSmartNBAApp(App):
             "statistics, probability and disciplined predictions."
         )
 
-        self.add_card(
-            content,
-            "OUR PRINCIPLE",
-            "Accuracy before quantity. Evidence before predictions."
-        )
-
                 self.add_card(
             content,
             "OUR PRINCIPLE",
