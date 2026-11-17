@@ -183,20 +183,45 @@ class NBADataProvider:
         )
 
     def _espn_json(self, url):
-        request = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": self.HEADERS["User-Agent"],
-                "Accept": "application/json",
-                "Referer": "https://www.espn.com/",
-            },
+        """
+        Fetch ESPN JSON without impersonating a desktop Chrome browser.
+        Some ESPN CDN routes reject copied browser User-Agent headers.
+        Retry the same public endpoint on ESPN's alternate web API host.
+        """
+        parsed = urllib.parse.urlsplit(url)
+        hosts = [parsed.netloc]
+        if parsed.netloc == "site.api.espn.com":
+            hosts.append("site.web.api.espn.com")
+
+        last_error = None
+        for host in hosts:
+            alternate_url = urllib.parse.urlunsplit(
+                (parsed.scheme, host, parsed.path, parsed.query, parsed.fragment)
+            )
+            request = urllib.request.Request(
+                alternate_url,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "GUNXSMARTNBA/0.1",
+                },
+            )
+            try:
+                with urllib.request.urlopen(
+                    request,
+                    timeout=min(self.timeout, 20),
+                    context=ssl.create_default_context(cafile=certifi.where()),
+                ) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                    if not isinstance(payload, dict):
+                        raise NBADataError("ESPN returned an invalid JSON object.")
+                    return payload
+            except Exception as exc:
+                last_error = exc
+                print("[NBA DATA] ESPN host failed:", host, exc)
+
+        raise NBADataError(
+            "ESPN endpoints unavailable on this network: " + str(last_error)
         )
-        with urllib.request.urlopen(
-            request,
-            timeout=min(self.timeout, 20),
-            context=ssl.create_default_context(cafile=certifi.where()),
-        ) as response:
-            return json.loads(response.read().decode("utf-8"))
 
     def _get_espn_team_stats(self, season):
         """
