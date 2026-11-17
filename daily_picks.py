@@ -1,6 +1,8 @@
 import json
 import urllib.parse
 import urllib.request
+import ssl
+import certifi
 from datetime import datetime
 
 from nba_data import NBADataProvider, NBADataError
@@ -36,7 +38,11 @@ class DailyPicksService:
             headers={"User-Agent": "GUNX-SMART-NBA/1.0"}
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with urllib.request.urlopen(
+                request,
+                timeout=self.timeout,
+                context=ssl.create_default_context(cafile=certifi.where())
+            ) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except Exception as exc:
             raise NBADataError("NBA fixture feed unavailable: " + str(exc))
