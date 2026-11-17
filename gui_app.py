@@ -770,7 +770,7 @@ class GunxSmartNBAApp(App):
     # ABOUT PAGE
     # -------------------------------------------------
 
-    def about_page(self):
+      def about_page(self):
 
         scroll, content = self.make_page()
 
@@ -786,7 +786,7 @@ class GunxSmartNBAApp(App):
             "statistics, probability and disciplined predictions."
         )
 
-                self.add_card(
+        self.add_card(
             content,
             "OUR PRINCIPLE",
             "Accuracy before quantity. Evidence before predictions."
