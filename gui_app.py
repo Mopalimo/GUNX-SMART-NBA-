@@ -89,6 +89,7 @@ class GunxSmartNBAApp(App):
             engine=self.nba_integration.engine
         )
         self.daily_picks_running = False
+        self.daily_scan_started = False
         self.analysis_running = False
 
         Window.clearcolor = get_color_from_hex(BG)
@@ -158,11 +159,17 @@ class GunxSmartNBAApp(App):
 
         # Show dashboard after 3 seconds
         Clock.schedule_once(self._show_dashboard, 3)
+        Clock.schedule_once(self._start_daily_scan, 3.4)
 
         return self.app_manager
 
     def _show_dashboard(self, dt):
         self.app_manager.current = "dashboard"
+
+    def _start_daily_scan(self, dt):
+        if not self.daily_scan_started:
+            self.daily_scan_started = True
+            self.run_daily_picks()
 
     # -------------------------------------------------
     # HEADER
@@ -541,6 +548,7 @@ class GunxSmartNBAApp(App):
         if self.daily_picks_running:
             return
         self.daily_picks_running = True
+        self.daily_scan_started = True
         self.daily_refresh_btn.disabled = True
         self.daily_refresh_btn.text = "SCANNING NBA FIXTURES..."
         self.daily_status.text = (
