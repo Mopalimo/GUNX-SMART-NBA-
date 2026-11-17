@@ -2,7 +2,6 @@ import json
 import urllib.parse
 import urllib.request
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from nba_data import NBADataProvider, NBADataError
 from nba_engine import NBAAnalysisEngine
@@ -26,7 +25,7 @@ class DailyPicksService:
 
     def _get_scoreboard(self, game_date=None):
         if game_date is None:
-            game_date = datetime.now(ZoneInfo("Africa/Dar_es_Salaam")).date()
+            game_date = datetime.now().date()
         date_text = game_date.strftime("%Y%m%d")
         url = self.SCOREBOARD_URL + "?" + urllib.parse.urlencode({
             "dates": date_text,
@@ -82,9 +81,7 @@ class DailyPicksService:
         if not games:
             return {
                 "status": "NO_GAMES",
-                "date": str(game_date or datetime.now(
-                    ZoneInfo("Africa/Dar_es_Salaam")
-                ).date()),
+                "date": str(game_date or datetime.now().date()),
                 "source": "ESPN_SCOREBOARD + NBA_STATS",
                 "picks": [],
                 "message": "No NBA fixtures found for this date.",
@@ -150,9 +147,7 @@ class DailyPicksService:
 
         return {
             "status": "SUCCESS" if picks else "NO_VERIFIED_PICKS",
-            "date": str(game_date or datetime.now(
-                ZoneInfo("Africa/Dar_es_Salaam")
-            ).date()),
+            "date": str(game_date or datetime.now().date()),
             "source": "ESPN_SCOREBOARD + NBA_STATS",
             "fixtures_found": len(games),
             "games_analyzed": len(analyzed),
