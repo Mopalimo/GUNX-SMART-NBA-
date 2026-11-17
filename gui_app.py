@@ -10,7 +10,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
-from kivy.uix.image import Image
+from kivy.uix.image import Image, AsyncImage
 from kivy.uix.button import Button
 from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 from kivy.graphics import Color, RoundedRectangle, Line
@@ -401,6 +401,32 @@ class GunxSmartNBAApp(App):
         ))
         hero.add_widget(hero_text)
         content.add_widget(hero)
+
+        # Real NBA player headshots from ESPN's public image CDN.
+        stars = GunxCard()
+        stars.add_widget(self.label("NBA STAR PLAYERS", 13, GOLD, True, 28))
+        star_row = BoxLayout(orientation="horizontal", size_hint_y=None,
+                             height=dp(112), spacing=dp(8))
+        player_data = [
+            ("LEBRON JAMES", "https://a.espncdn.com/i/headshots/nba/players/full/1966.png"),
+            ("STEPHEN CURRY", "https://a.espncdn.com/i/headshots/nba/players/full/3975.png"),
+            ("LUKA DONCIC", "https://a.espncdn.com/i/headshots/nba/players/full/3945274.png"),
+        ]
+        for player_name, photo_url in player_data:
+            player_tile = BoxLayout(orientation="vertical", spacing=dp(2))
+            player_photo = AsyncImage(
+                source=photo_url,
+                size_hint=(1, 1),
+                allow_stretch=True,
+                keep_ratio=True
+            )
+            player_tile.add_widget(player_photo)
+            player_tile.add_widget(self.label(
+                player_name, 9, WHITE, True, 20
+            ))
+            star_row.add_widget(player_tile)
+        stars.add_widget(star_row)
+        content.add_widget(stars)
 
         wide = Window.width >= dp(650)
 
