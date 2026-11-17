@@ -8,22 +8,25 @@ package.domain = org.gunx
 
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,json
+
 icon.filename = %(source.dir)s/gunx_logo.png
 
 version = 0.1
 
-requirements = python3,kivy
+requirements = python3,kivy,requests,certifi,urllib3,idna,charset-normalizer
 
 orientation = portrait
 fullscreen = 0
 
 android.permissions = INTERNET
+
 android.accept_sdk_license = True
 
-android.api = 36
+android.api = 35
 android.minapi = 24
 android.ndk = 29
 android.ndk_api = 24
+
 android.archs = arm64-v8a
 
 p4a.branch = develop
