@@ -162,14 +162,15 @@ class GunxSmartNBAApp(App):
     # HEADER
     # -------------------------------------------------
 
+
     def build_header(self):
 
         header = BoxLayout(
-            orientation="vertical",
+            orientation="horizontal",
             size_hint_y=None,
-            height=dp(155),
-            padding=[dp(13), dp(8)],
-            spacing=dp(3)
+            height=dp(92),
+            padding=[dp(10), dp(7)],
+            spacing=dp(10)
         )
 
         with header.canvas.before:
@@ -188,48 +189,31 @@ class GunxSmartNBAApp(App):
         logo = Image(
             source="gunx_logo.png",
             size_hint=(None, None),
-            size=(dp(75), dp(75)),
+            size=(dp(76), dp(76)),
             allow_stretch=True,
             keep_ratio=True
         )
-
         header.add_widget(logo)
 
-        header.add_widget(self.label(
-            "GUNX SMART NBA",
-            25, GOLD, True, 40
-        ))
-
-        header.add_widget(self.label(
-            "ANALYZE  |  PREDICT  |  WIN",
-            12, WHITE, True, 23
-        ))
-
-        header.add_widget(self.label(
-            "NBA INTELLIGENCE CENTER",
-            11, MUTED, True, 22
-        ))
+        brand = BoxLayout(orientation="vertical", spacing=dp(1))
+        brand.add_widget(self.label("GUNX SMART NBA", 21, GOLD, True, 35))
+        brand.add_widget(self.label("ANALYZE  |  PREDICT  |  WIN", 11, WHITE, True, 24))
+        brand.add_widget(self.label("NBA INTELLIGENCE CENTER", 10, MUTED, True, 21))
+        header.add_widget(brand)
 
         self.root_layout.add_widget(header)
 
-    # -------------------------------------------------
-    # NAVIGATION
-    # -------------------------------------------------
 
     def build_navigation(self):
 
         nav = ScrollView(
             size_hint_y=None,
-            height=dp(49),
+            height=dp(43),
             do_scroll_y=False,
             bar_width=dp(2)
         )
 
-        row = BoxLayout(
-            size_hint_x=None,
-            spacing=dp(5)
-        )
-
+        row = BoxLayout(size_hint_x=None, spacing=dp(5))
         row.bind(minimum_width=row.setter("width"))
 
         items = [
@@ -244,20 +228,14 @@ class GunxSmartNBAApp(App):
         ]
 
         for title, page in items:
-
             btn = GunxButton(
                 text=title,
                 size_hint_x=None,
-                width=dp(112),
-                font_size=sp(11),
+                width=dp(108),
+                font_size=sp(10),
                 background_color=get_color_from_hex("#142B50")
             )
-
-            btn.bind(
-                on_release=lambda instance, p=page:
-                self.open_page(p)
-            )
-
+            btn.bind(on_release=lambda instance, p=page: self.open_page(p))
             row.add_widget(btn)
 
         nav.add_widget(row)
@@ -345,60 +323,104 @@ class GunxSmartNBAApp(App):
     # HOME PAGE
     # -------------------------------------------------
 
+
     def home_page(self):
 
         scroll, content = self.make_page()
 
-        content.add_widget(self.label(
-            "WELCOME TO GUNX SMART NBA",
-            19, GOLD, True, 45
+        # Hero banner
+        hero = GunxCard()
+        hero.padding = [dp(16), dp(12)]
+        hero.spacing = dp(5)
+        hero.add_widget(self.label(
+            "GUNX SMART NBA  |  INTELLIGENCE CENTER",
+            12, BLUE, True, 28
         ))
-
-        content.add_widget(self.label(
+        hero.add_widget(self.label(
+            "NBA DAILY TOP 10 PICKS",
+            23, GOLD, True, 42
+        ))
+        hero.add_widget(self.label(
+            "STATISTICS-DRIVEN MATCH ANALYSIS",
+            12, WHITE, True, 27
+        ))
+        hero.add_widget(self.label(
             datetime.now().strftime("%A, %d %B %Y"),
-            12, MUTED, False, 28
+            11, MUTED, False, 24
         ))
+        content.add_widget(hero)
 
-        self.add_card(
-            content,
-            "DAILY TOP 10 PICKS",
-            "Your strongest verified NBA predictions will appear here."
+        # Top picks table: never fabricate predictions or confidence.
+        picks = GunxCard()
+        picks.add_widget(self.label(
+            "TOP 10 PICKS",
+            18, GOLD, True, 34
+        ))
+        header = GridLayout(
+            cols=3, size_hint_y=None, height=dp(34),
+            spacing=dp(4)
         )
+        for title in ("MATCH", "MARKET", "CONFIDENCE"):
+            header.add_widget(self.label(title, 10, BLUE, True, 30))
+        picks.add_widget(header)
+        picks.add_widget(self.label(
+            "No verified NBA fixtures or market data loaded yet.",
+            12, MUTED, False, 48
+        ))
+        picks.add_widget(self.label(
+            "Picks and confidence scores will appear only after valid data is received.",
+            11, GREEN, True, 42
+        ))
+        content.add_widget(picks)
 
-        self.add_card(
-            content,
+        # AI analysis panel
+        analysis = GunxCard()
+        analysis.add_widget(self.label(
             "AI ANALYSIS",
-            "Team form, offensive rating, defensive rating and pace."
+            17, GOLD, True, 32
+        ))
+        analysis.add_widget(self.label(
+            "Team form  •  Pace  •  Points for/against  •  Win probability",
+            12, WHITE, False, 48
+        ))
+        analyze = GunxButton(
+            text="OPEN AI ANALYSIS",
+            size_hint_y=None, height=dp(44)
         )
+        analyze.bind(on_release=lambda instance: self.open_page("analysis"))
+        analysis.add_widget(analyze)
+        content.add_widget(analysis)
 
-        self.add_card(
-            content,
-            "ODDS CENTER",
-            "Over/Under, match totals, probability and fair odds."
-        )
+        # Live scores and odds
+        grid = GridLayout(cols=2, size_hint_y=None, height=dp(142), spacing=dp(8))
+        live = GunxCard()
+        live.add_widget(self.label("LIVE NBA SCORES", 13, GOLD, True, 32))
+        live.add_widget(self.label("Live scoreboard source not connected.", 11, MUTED, False, 65))
+        odds = GunxCard()
+        odds.add_widget(self.label("ODDS CENTER", 13, GOLD, True, 32))
+        odds.add_widget(self.label("Verified market odds are not loaded.", 11, MUTED, False, 65))
+        grid.add_widget(live)
+        grid.add_widget(odds)
+        content.add_widget(grid)
 
-        self.add_card(
-            content,
-            "LIVE NBA SCORES",
-            "Live scores require a verified live game data source."
-        )
-
-        self.add_card(
-            content,
-            "PERFORMANCE",
-            "Track wins, losses, ROI and prediction accuracy."
-        )
+        # Performance strip
+        performance = GunxCard()
+        performance.add_widget(self.label("PERFORMANCE", 16, GOLD, True, 30))
+        stats = GridLayout(cols=3, size_hint_y=None, height=dp(55), spacing=dp(5))
+        for value, caption in (("0", "PICKS"), ("—", "ACCURACY"), ("—", "ROI")):
+            stat = BoxLayout(orientation="vertical", spacing=dp(1))
+            stat.add_widget(self.label(value, 18, WHITE, True, 28))
+            stat.add_widget(self.label(caption, 10, MUTED, True, 22))
+            stats.add_widget(stat)
+        performance.add_widget(stats)
+        content.add_widget(performance)
 
         content.add_widget(self.label(
-            "DATA STATUS: NBA SEASON INTEGRATION READY",
-            12, GREEN, True, 45
+            "DATA INTEGRITY: NO INVENTED FIXTURES, ODDS OR RESULTS",
+            10, GREEN, True, 38
         ))
 
         return scroll
-
-    # -------------------------------------------------
-    # DAILY PICKS PAGE
-    # -------------------------------------------------
 
     def daily_page(self):
 
