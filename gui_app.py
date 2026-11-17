@@ -792,4 +792,10 @@ class GunxSmartNBAApp(App):
             "Accuracy before quantity. Evidence before predictions."
         )
 
-        co
+                self.add_card(
+            content,
+            "OUR PRINCIPLE",
+            "Accuracy before quantity. Evidence before predictions."
+        )
+
+        return scroll
