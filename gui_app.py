@@ -745,7 +745,7 @@ class GunxSmartNBAApp(App):
 
         return scroll
 
-    # -------------------------------------------------
+        # -------------------------------------------------
     # HISTORY PAGE
     # -------------------------------------------------
 
@@ -770,7 +770,7 @@ class GunxSmartNBAApp(App):
     # ABOUT PAGE
     # -------------------------------------------------
 
-      def about_page(self):
+    def about_page(self):
 
         scroll, content = self.make_page()
 
