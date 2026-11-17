@@ -12,10 +12,11 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.label import Label
 from kivy.uix.image import Image
 from kivy.uix.button import Button
-from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
 from kivy.graphics import Color, RoundedRectangle
 from kivy.utils import get_color_from_hex
 from kivy.uix.textinput import TextInput
+from kivy.uix.anchorlayout import AnchorLayout
 
 from nba_integration import GUNXNBAIntegration
 
@@ -72,13 +73,47 @@ class GunxButton(Button):
 
 class GunxSmartNBAApp(App):
 
+    # -------------------------------------------------
+    # MAIN BUILD + SPLASH SCREEN
+    # -------------------------------------------------
+
     def build(self):
 
         self.title = "GUNX SMART NBA"
+        self.icon = "gunx_logo.png"
+
         self.nba_integration = GUNXNBAIntegration()
         self.analysis_running = False
 
         Window.clearcolor = get_color_from_hex(BG)
+
+        # Main screen manager
+        self.app_manager = ScreenManager(
+            transition=NoTransition()
+        )
+
+        # SPLASH SCREEN
+        splash = Screen(name="splash")
+
+        splash_layout = AnchorLayout(
+            anchor_x="center",
+            anchor_y="center"
+        )
+
+        splash_logo = Image(
+            source="gunx_logo.png",
+            allow_stretch=True,
+            keep_ratio=True,
+            size_hint=(0.94, 0.94)
+        )
+
+        splash_layout.add_widget(splash_logo)
+        splash.add_widget(splash_layout)
+
+        self.app_manager.add_widget(splash)
+
+        # DASHBOARD SCREEN
+        dashboard = Screen(name="dashboard")
 
         self.root_layout = BoxLayout(
             orientation="vertical",
@@ -87,7 +122,10 @@ class GunxSmartNBAApp(App):
         )
 
         self.build_header()
-        self.manager = ScreenManager()
+
+        self.manager = ScreenManager(
+            transition=NoTransition()
+        )
 
         pages = [
             ("home", self.home_page),
@@ -108,91 +146,75 @@ class GunxSmartNBAApp(App):
         self.root_layout.add_widget(self.manager)
 
         self.build_navigation()
-        return self.root_layout
+
+        dashboard.add_widget(self.root_layout)
+        self.app_manager.add_widget(dashboard)
+
+        # Show dashboard after 3 seconds
+        Clock.schedule_once(self._show_dashboard, 3)
+
+        return self.app_manager
+
+    def _show_dashboard(self, dt):
+        self.app_manager.current = "dashboard"
 
     # -------------------------------------------------
-    # GENERAL UI
+    # HEADER
     # -------------------------------------------------
 
-    def label(
-        self,
-        text,
-        size=14,
-        color=WHITE,
-        bold=False,
-        height=40
-    ):
+    def build_header(self):
 
-        lbl = Label(
-            text=str(text),
-            font_size=sp(size),
-            color=get_color_from_hex(color),
-            bold=bold,
-            halign="left",
-            valign="middle",
-            size_hint_x=1,
+        header = BoxLayout(
+            orientation="vertical",
             size_hint_y=None,
-            height=dp(height)
+            height=dp(155),
+            padding=[dp(13), dp(8)],
+            spacing=dp(3)
         )
 
-        # Make text wrap correctly on different phone screens.
-        lbl.bind(
-            width=lambda instance, value:
-            setattr(instance, "text_size", (max(0, value - dp(4)), None))
+        with header.canvas.before:
+            Color(*get_color_from_hex("#0B1934"))
+            header.bg = RoundedRectangle(
+                pos=header.pos,
+                size=header.size,
+                radius=[dp(15)]
+            )
+
+        header.bind(
+            pos=lambda obj, value: setattr(obj.bg, "pos", value),
+            size=lambda obj, value: setattr(obj.bg, "size", value)
         )
 
-        return lbl
-
-    
-def build_header(self):
-
-    header = BoxLayout(
-        orientation="vertical",
-        size_hint_y=None,
-        height=dp(155),
-        padding=[dp(13), dp(8)],
-        spacing=dp(3)
-    )
-
-    with header.canvas.before:
-        Color(*get_color_from_hex("#0B1934"))
-        header.bg = RoundedRectangle(
-            pos=header.pos,
-            size=header.size,
-            radius=[dp(15)]
+        logo = Image(
+            source="gunx_logo.png",
+            size_hint=(None, None),
+            size=(dp(75), dp(75)),
+            allow_stretch=True,
+            keep_ratio=True
         )
 
-    header.bind(
-        pos=lambda obj, value: setattr(obj.bg, "pos", value),
-        size=lambda obj, value: setattr(obj.bg, "size", value)
-    )
+        header.add_widget(logo)
 
-    logo = Image(
-        source="gunx_logo.png",
-        size_hint=(None, None),
-        size=(dp(75), dp(75)),
-        allow_stretch=True,
-        keep_ratio=True
-    )
+        header.add_widget(self.label(
+            "GUNX SMART NBA",
+            25, GOLD, True, 40
+        ))
 
-    header.add_widget(logo)
+        header.add_widget(self.label(
+            "ANALYZE  |  PREDICT  |  WIN",
+            12, WHITE, True, 23
+        ))
 
-    header.add_widget(self.label(
-        "GUNX SMART NBA",
-        25, GOLD, True, 40
-    ))
+        header.add_widget(self.label(
+            "NBA INTELLIGENCE CENTER",
+            11, MUTED, True, 22
+        ))
 
-    header.add_widget(self.label(
-        "ANALYZE  |  PREDICT  |  WIN",
-        12, WHITE, True, 23
-    ))
+        self.root_layout.add_widget(header)
 
-    header.add_widget(self.label(
-        "NBA INTELLIGENCE CENTER",
-        11, MUTED, True, 22
-    ))
-
-    self.root_layout.add_widget(header)
+    # -------------------------------------------------
+    # NAVIGATION
+    # -------------------------------------------------
 
     def build_navigation(self):
 
@@ -244,6 +266,42 @@ def build_header(self):
     def open_page(self, page):
         self.manager.current = page
 
+    # -------------------------------------------------
+    # GENERAL UI
+    # -------------------------------------------------
+
+    def label(
+        self,
+        text,
+        size=14,
+        color=WHITE,
+        bold=False,
+        height=40
+    ):
+
+        lbl = Label(
+            text=str(text),
+            font_size=sp(size),
+            color=get_color_from_hex(color),
+            bold=bold,
+            halign="left",
+            valign="middle",
+            size_hint_x=1,
+            size_hint_y=None,
+            height=dp(height)
+        )
+
+        lbl.bind(
+            width=lambda instance, value:
+            setattr(
+                instance,
+                "text_size",
+                (max(0, value - dp(4)), None)
+            )
+        )
+
+        return lbl
+
     def make_page(self):
 
         scroll = ScrollView(
@@ -259,7 +317,10 @@ def build_header(self):
             size_hint_y=None
         )
 
-        content.bind(minimum_height=content.setter("height"))
+        content.bind(
+            minimum_height=content.setter("height")
+        )
+
         scroll.add_widget(content)
 
         return scroll, content
@@ -277,6 +338,7 @@ def build_header(self):
         ))
 
         parent.add_widget(card)
+
         return card
 
     # -------------------------------------------------
@@ -463,17 +525,21 @@ def build_header(self):
         if not home_name or not away_name:
 
             self.analysis_status.text = "STATUS: INPUT ERROR"
+
             self.analysis_output.text = (
                 "Please enter both home and away teams."
             )
+
             return
 
         if home_name.lower() == away_name.lower():
 
             self.analysis_status.text = "STATUS: INPUT ERROR"
+
             self.analysis_output.text = (
                 "Home and away teams cannot be the same."
             )
+
             return
 
         self.analysis_running = True
@@ -484,6 +550,7 @@ def build_header(self):
         self.analysis_status.text = (
             "STATUS: CONNECTING TO NBA DATA PROVIDER..."
         )
+
         self.analysis_status.color = get_color_from_hex(GOLD)
 
         self.analysis_output.text = (
@@ -549,6 +616,7 @@ def build_header(self):
                 + "\n\nPlease check your team names "
                 "and internet connection."
             )
+
             return
 
         home_stats = result.get("home_team_stats", {})
@@ -578,6 +646,7 @@ def build_header(self):
         self.analysis_status.text = (
             "STATUS: SUCCESS - NBA SEASON DATA"
         )
+
         self.analysis_status.color = get_color_from_hex(GREEN)
 
         self.analysis_output.text = (
