@@ -11,6 +11,10 @@ source.include_exts = py,png,jpg,jpeg,kv,atlas,ttf,json
 
 icon.filename = %(source.dir)s/gunx_logo.png
 
+# Native Android launch splash: use the official GUNX SMART NBA logo
+presplash.filename = %(source.dir)s/gunx_logo.png
+presplash.color = #070D1B
+
 version = 0.1
 
 requirements = python3,kivy,requests,certifi,urllib3,idna,charset-normalizer
