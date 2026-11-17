@@ -328,95 +328,160 @@ class GunxSmartNBAApp(App):
 
         scroll, content = self.make_page()
 
-        # Hero banner
+        # Hero display: official GUNX logo, gold title and today's date.
         hero = GunxCard()
-        hero.padding = [dp(16), dp(12)]
-        hero.spacing = dp(5)
-        hero.add_widget(self.label(
-            "GUNX SMART NBA  |  INTELLIGENCE CENTER",
-            12, BLUE, True, 28
+        hero.orientation = "horizontal"
+        hero.size_hint_y = None
+        hero.height = dp(142)
+        hero.padding = [dp(10), dp(9)]
+        hero.spacing = dp(10)
+
+        hero_logo = Image(
+            source="gunx_logo.png",
+            size_hint=(None, 1),
+            width=dp(112),
+            allow_stretch=True,
+            keep_ratio=True
+        )
+        hero.add_widget(hero_logo)
+
+        hero_text = BoxLayout(orientation="vertical", spacing=dp(2))
+        hero_text.add_widget(self.label(
+            "NBA DAILY", 14, WHITE, True, 27
         ))
-        hero.add_widget(self.label(
-            "NBA DAILY TOP 10 PICKS",
-            23, GOLD, True, 42
+        hero_text.add_widget(self.label(
+            "TOP 10 PICKS", 23, GOLD, True, 40
         ))
-        hero.add_widget(self.label(
-            "STATISTICS-DRIVEN MATCH ANALYSIS",
-            12, WHITE, True, 27
+        hero_text.add_widget(self.label(
+            "SMART ANALYSIS. HIGHER CHANCES.", 10, MUTED, True, 25
         ))
-        hero.add_widget(self.label(
-            datetime.now().strftime("%A, %d %B %Y"),
-            11, MUTED, False, 24
+        hero_text.add_widget(self.label(
+            datetime.now().strftime("%a, %d %b %Y"),
+            11, WHITE, True, 25
         ))
+        hero.add_widget(hero_text)
         content.add_widget(hero)
 
-        # Top picks table: never fabricate predictions or confidence.
+        wide = Window.width >= dp(650)
+
+        # Main dashboard panels. Two columns on tablet/wide displays,
+        # a single readable column on narrow phones.
+        primary = GridLayout(
+            cols=2 if wide else 1,
+            size_hint_y=None,
+            spacing=dp(9),
+            row_default_height=dp(280),
+            row_force_default=False
+        )
+        primary.bind(minimum_height=primary.setter("height"))
+
         picks = GunxCard()
         picks.add_widget(self.label(
-            "TOP 10 PICKS",
-            18, GOLD, True, 34
+            "🎯  TOP 10 PICKS TODAY", 17, GOLD, True, 38
         ))
-        header = GridLayout(
-            cols=3, size_hint_y=None, height=dp(34),
-            spacing=dp(4)
+        columns = GridLayout(
+            cols=4, size_hint_y=None, height=dp(32), spacing=dp(3)
         )
-        for title in ("MATCH", "MARKET", "CONFIDENCE"):
-            header.add_widget(self.label(title, 10, BLUE, True, 30))
-        picks.add_widget(header)
+        for title in ("#", "MATCH", "MARKET", "CONF."):
+            columns.add_widget(self.label(title, 10, BLUE, True, 28))
+        picks.add_widget(columns)
         picks.add_widget(self.label(
-            "No verified NBA fixtures or market data loaded yet.",
-            12, MUTED, False, 48
+            "No verified NBA fixtures or market odds loaded yet.",
+            12, MUTED, False, 58
         ))
         picks.add_widget(self.label(
-            "Picks and confidence scores will appear only after valid data is received.",
-            11, GREEN, True, 42
+            "Verified picks will appear here when the data feed is available.",
+            11, GREEN, True, 52
         ))
-        content.add_widget(picks)
+        primary.add_widget(picks)
 
-        # AI analysis panel
         analysis = GunxCard()
         analysis.add_widget(self.label(
-            "AI ANALYSIS",
-            17, GOLD, True, 32
+            "🧠  AI ANALYSIS", 17, GOLD, True, 38
         ))
         analysis.add_widget(self.label(
-            "Team form  •  Pace  •  Points for/against  •  Win probability",
-            12, WHITE, False, 48
+            "Team form  •  Pace  •  Points for/against",
+            12, WHITE, False, 42
+        ))
+        analysis.add_widget(self.label(
+            "Win probability and projected points appear after verified team statistics are received.",
+            12, MUTED, False, 86
         ))
         analyze = GunxButton(
-            text="OPEN AI ANALYSIS",
+            text="SEE FULL ANALYSIS",
             size_hint_y=None, height=dp(44)
         )
         analyze.bind(on_release=lambda instance: self.open_page("analysis"))
         analysis.add_widget(analyze)
-        content.add_widget(analysis)
+        primary.add_widget(analysis)
 
-        # Live scores and odds
-        grid = GridLayout(cols=2, size_hint_y=None, height=dp(142), spacing=dp(8))
+        content.add_widget(primary)
+
+        secondary = GridLayout(
+            cols=2 if wide else 1,
+            size_hint_y=None,
+            spacing=dp(9)
+        )
+        secondary.bind(minimum_height=secondary.setter("height"))
+
         live = GunxCard()
-        live.add_widget(self.label("LIVE NBA SCORES", 13, GOLD, True, 32))
-        live.add_widget(self.label("Live scoreboard source not connected.", 11, MUTED, False, 65))
-        odds = GunxCard()
-        odds.add_widget(self.label("ODDS CENTER", 13, GOLD, True, 32))
-        odds.add_widget(self.label("Verified market odds are not loaded.", 11, MUTED, False, 65))
-        grid.add_widget(live)
-        grid.add_widget(odds)
-        content.add_widget(grid)
+        live.add_widget(self.label(
+            "🔴  LIVE NBA SCORES", 16, GOLD, True, 38
+        ))
+        live.add_widget(self.label(
+            "Live scoreboard feed is not connected yet. Scores will show here once a verified live source is connected.",
+            12, MUTED, False, 76
+        ))
+        live_btn = GunxButton(
+            text="VIEW ALL LIVE SCORES",
+            size_hint_y=None, height=dp(42)
+        )
+        live_btn.bind(on_release=lambda instance: self.open_page("live"))
+        live.add_widget(live_btn)
+        secondary.add_widget(live)
 
-        # Performance strip
+        odds = GunxCard()
+        odds.add_widget(self.label(
+            "⚖  ODDS CENTER", 16, GOLD, True, 38
+        ))
+        odds.add_widget(self.label(
+            "Over / Under  •  Moneyline  •  Spread",
+            12, WHITE, True, 35
+        ))
+        odds.add_widget(self.label(
+            "Verified bookmaker odds are not loaded. No sample prices are displayed.",
+            12, MUTED, False, 60
+        ))
+        odds_btn = GunxButton(
+            text="VIEW MORE ODDS",
+            size_hint_y=None, height=dp(42)
+        )
+        odds_btn.bind(on_release=lambda instance: self.open_page("odds"))
+        odds.add_widget(odds_btn)
+        secondary.add_widget(odds)
+
+        content.add_widget(secondary)
+
         performance = GunxCard()
-        performance.add_widget(self.label("PERFORMANCE", 16, GOLD, True, 30))
-        stats = GridLayout(cols=3, size_hint_y=None, height=dp(55), spacing=dp(5))
-        for value, caption in (("0", "PICKS"), ("—", "ACCURACY"), ("—", "ROI")):
+        performance.orientation = "horizontal"
+        performance.size_hint_y = None
+        performance.height = dp(82)
+        performance.add_widget(self.label(
+            "🏆  PERFORMANCE", 15, GOLD, True, 55
+        ))
+        for value, caption in (
+            ("0", "PICKS"),
+            ("—", "SUCCESS"),
+            ("—", "ROI")
+        ):
             stat = BoxLayout(orientation="vertical", spacing=dp(1))
-            stat.add_widget(self.label(value, 18, WHITE, True, 28))
-            stat.add_widget(self.label(caption, 10, MUTED, True, 22))
-            stats.add_widget(stat)
-        performance.add_widget(stats)
+            stat.add_widget(self.label(value, 18, GREEN, True, 34))
+            stat.add_widget(self.label(caption, 9, MUTED, True, 25))
+            performance.add_widget(stat)
         content.add_widget(performance)
 
         content.add_widget(self.label(
-            "DATA INTEGRITY: NO INVENTED FIXTURES, ODDS OR RESULTS",
+            "DATA INTEGRITY: VERIFIED DATA ONLY — NO FABRICATED ODDS OR SCORES",
             10, GREEN, True, 38
         ))
 
