@@ -87,6 +87,16 @@ jobs:
           java -version
           buildozer --version
 
+      - name: Install DunkAPI Python client
+        run: |
+          python -m pip install dunkapi
+
+      - name: Verify DunkAPI credentials and NBA data
+        env:
+          DUNKAPI_API_KEY: ${{ secrets.DUNKAPI_API_KEY }}
+        run: |
+          python dunkapi_smoke_test.py
+
       - name: Test NBA Engine
         run: |
           python nba_test.py
