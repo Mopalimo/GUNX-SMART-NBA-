@@ -1,5 +1,7 @@
 import json
 import socket
+import ssl
+import certifi
 import time
 import urllib.parse
 import urllib.request
@@ -106,7 +108,8 @@ class NBADataProvider:
 
                 with urllib.request.urlopen(
                     request,
-                    timeout=self.timeout
+                    timeout=self.timeout,
+                    context=ssl.create_default_context(cafile=certifi.where())
                 ) as response:
 
                     raw = response.read().decode("utf-8")
