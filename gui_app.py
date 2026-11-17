@@ -152,7 +152,7 @@ class GunxSmartNBAApp(App):
         self.build_header()
 
         self.manager = ScreenManager(
-            transition=NoTransition()
+            transition=SlideTransition(duration=0.22, direction="left")
         )
 
         pages = [
