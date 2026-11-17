@@ -50,8 +50,9 @@ class GUNXNBAIntegration:
             result["home_team_stats"] = home_stats
             result["away_team_stats"] = away_stats
 
-            result["data_source"] = "NBA_STATS"
-            result["data_status"] = "SEASON_DATA"
+            result["data_source"] = home_stats.get("data_source", "NBA_STATS")
+            result["data_status"] = home_stats.get("data_status", "SEASON_DATA")
+            result["pace_status"] = home_stats.get("pace_status", "NBA_ADVANCED_DATA")
 
             result["season"] = (
                 home_stats.get("season")
