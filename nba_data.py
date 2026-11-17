@@ -182,6 +182,126 @@ class NBADataProvider:
             f"{self.retries} attempts: {last_error}"
         )
 
+    def _espn_json(self, url):
+        request = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": self.HEADERS["User-Agent"],
+                "Accept": "application/json",
+                "Referer": "https://www.espn.com/",
+            },
+        )
+        with urllib.request.urlopen(
+            request,
+            timeout=min(self.timeout, 20),
+            context=ssl.create_default_context(cafile=certifi.where()),
+        ) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def _get_espn_team_stats(self, season):
+        """
+        Fallback data source when stats.nba.com blocks mobile requests.
+        Computes points for/against and win rate from completed ESPN
+        season game logs. Pace is explicitly a neutral estimate because
+        the schedule feed does not supply possessions.
+        """
+        season_year = int(str(season).split("-")[0])
+        teams_url = (
+            "https://site.api.espn.com/apis/site/v2/sports/"
+            "basketball/nba/teams?limit=100"
+        )
+        payload = self._espn_json(teams_url)
+        teams = (
+            payload.get("sports", [{}])[0]
+            .get("leagues", [{}])[0]
+            .get("teams", [])
+        )
+        if not teams:
+            raise NBADataError("ESPN team directory returned no teams.")
+
+        output = {}
+        for item in teams:
+            team_info = item.get("team", item)
+            team_id = team_info.get("id")
+            display_name = team_info.get("displayName") or team_info.get("name")
+            abbreviation = team_info.get("abbreviation")
+            if not team_id or not display_name:
+                continue
+
+            schedule_url = (
+                "https://site.api.espn.com/apis/site/v2/sports/"
+                f"basketball/nba/teams/{team_id}/schedule?season={season_year}"
+            )
+            schedule = self._espn_json(schedule_url)
+            events = schedule.get("events", [])
+            points_for = []
+            points_against = []
+            wins = 0
+            played = 0
+
+            for event in events:
+                status = event.get("competitions", [{}])[0].get(
+                    "status", {}
+                ).get("type", {})
+                if not status.get("completed"):
+                    continue
+                competition = event.get("competitions", [{}])[0]
+                competitors = competition.get("competitors", [])
+                if len(competitors) < 2:
+                    continue
+
+                own = next(
+                    (c for c in competitors
+                     if str(c.get("team", {}).get("id")) == str(team_id)),
+                    None
+                )
+                opponent = next(
+                    (c for c in competitors
+                     if str(c.get("team", {}).get("id")) != str(team_id)),
+                    None
+                )
+                if own is None or opponent is None:
+                    continue
+                try:
+                    own_score = float(own.get("score"))
+                    opponent_score = float(opponent.get("score"))
+                except (TypeError, ValueError):
+                    continue
+
+                points_for.append(own_score)
+                points_against.append(opponent_score)
+                played += 1
+                if own.get("winner") is True or own_score > opponent_score:
+                    wins += 1
+
+            if not played:
+                continue
+
+            ppg = sum(points_for) / played
+            opp_ppg = sum(points_against) / played
+            win_pct = wins / played
+            output[display_name.lower()] = {
+                "team_id": team_id,
+                "team_name": display_name,
+                "ppg": ppg,
+                "opp_ppg": opp_ppg,
+                "pace": 100.0,
+                "win_pct": win_pct,
+                "games_played": played,
+                "season": season,
+                "data_status": "ESPN_GAME_LOG_ESTIMATE",
+                "data_source": "ESPN completed game logs",
+                "pace_status": "NEUTRAL_ESTIMATE_NOT_LIVE_DATA",
+            }
+
+        if not output:
+            raise NBADataError(
+                "ESPN schedules returned no completed games for "
+                + str(season)
+                + ". The season may not have started or the feed is unavailable."
+            )
+        return output
+
     def get_all_team_stats(
         self,
         season=None,
@@ -195,15 +315,18 @@ class NBADataProvider:
             if not force_refresh and cache_key in self._cache:
                 return self._cache[cache_key]
 
-        base_data = self._request_stats(
-            season,
-            "Base"
-        )
+        # Prefer ESPN game logs because stats.nba.com can reject
+        # requests from Android/mobile networks. Use NBA Stats as backup.
+        try:
+            teams = self._get_espn_team_stats(season)
+            with self._lock:
+                self._cache[cache_key] = teams
+            return teams
+        except Exception as espn_error:
+            print("[NBA DATA] ESPN fallback unavailable:", espn_error)
 
-        advanced_data = self._request_stats(
-            season,
-            "Advanced"
-        )
+        base_data = self._request_stats(season, "Base")
+        advanced_data = self._request_stats(season, "Advanced")
 
         advanced_lookup = {
             row["TEAM_ID"]: row
