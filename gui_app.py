@@ -13,7 +13,7 @@ from kivy.uix.label import Label
 from kivy.uix.image import Image
 from kivy.uix.button import Button
 from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
-from kivy.graphics import Color, RoundedRectangle
+from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.utils import get_color_from_hex
 from kivy.uix.textinput import TextInput
 from kivy.uix.anchorlayout import AnchorLayout
@@ -51,12 +51,33 @@ class GunxCard(BoxLayout):
                 size=self.size,
                 radius=[dp(14)]
             )
+        with self.canvas.after:
+            Color(*get_color_from_hex("#176BCE"))
+            self.edge = Line(
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp(14)),
+                width=1.15
+            )
+            Color(*get_color_from_hex("#B98722"))
+            self.gold_edge = Line(
+                rounded_rectangle=(self.x + dp(2), self.y + dp(2),
+                                   max(0, self.width - dp(4)),
+                                   max(0, self.height - dp(4)), dp(12)),
+                width=0.55
+            )
 
         self.bind(pos=self.update_bg, size=self.update_bg)
 
     def update_bg(self, *args):
         self.bg.pos = self.pos
         self.bg.size = self.size
+        self.edge.rounded_rectangle = (
+            self.x, self.y, self.width, self.height, dp(14)
+        )
+        self.gold_edge.rounded_rectangle = (
+            self.x + dp(2), self.y + dp(2),
+            max(0, self.width - dp(4)),
+            max(0, self.height - dp(4)), dp(12)
+        )
 
 
 class GunxButton(Button):
