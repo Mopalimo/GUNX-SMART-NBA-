@@ -4,7 +4,7 @@ This is a parallel React Native / Expo frontend in `mobile/`. The existing Pytho
 
 ## Local development
 - Node.js 20+
-- From this directory: `npm install`
+- From this directory: `npm install --legacy-peer-deps` (the current Expo / icon package peer ranges require this compatibility flag)
 - Start Expo: `npx expo start`
 
 ## Android build
