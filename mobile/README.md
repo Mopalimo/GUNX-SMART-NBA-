@@ -15,3 +15,5 @@ All picks, odds, confidence percentages, scores and performance values currently
 
 ## Existing app
 The root Python/Kivy project and its current APK workflow remain unchanged. Do not remove or replace them until the React Native build and feature parity have been verified on a real Android device.
+
+Android APK builds are restricted to `arm64-v8a` and `armeabi-v7a` to avoid bundling unused x86 native libraries on Android phones.
