@@ -56,6 +56,15 @@ jobs:
         run: |
           unzip -l app/build/outputs/apk/release/app-release.apk | grep -E 'assets/index.android.bundle|assets/index.android.bundle.hbc'
 
+      - name: Sign APK for direct device installation
+        working-directory: mobile/android
+        run: |
+          keytool -genkeypair -v -keystore gunx-test-release.keystore -storepass android -keypass android -alias gunx-test -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=GUNX SMART NBA Test,O=GUNX,C=TZ"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -n 1)"
+          "$APKSIGNER" sign --ks gunx-test-release.keystore --ks-key-alias gunx-test --ks-pass pass:android --key-pass pass:android --out app-release-signed.apk app/build/outputs/apk/release/app-release.apk
+          "$APKSIGNER" verify app-release-signed.apk
+          mv app-release-signed.apk app/build/outputs/apk/release/app-release.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
