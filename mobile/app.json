@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "GUNX SMART NBA",
+    "slug": "gunx-smart-nba",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "android": { "package": "org.gunx.smartnba" },
+    "ios": { "bundleIdentifier": "org.gunx.smartnba" }
+  }
+}
